@@ -59,36 +59,47 @@ class WA_Suit_Admin {
 	 *
 	 * @return void
 	 */
-	public function add_menu() {
-		// Position 3 places the menu immediately below Dashboard (2), above Posts (5).
-		add_menu_page(
-			__( 'Painel', 'wa-suit' ),
-			__( 'Painel', 'wa-suit' ),
-			'manage_options',
-			'wa-suit',
-			array( $this, 'render_page' ),
-			'dashicons-admin-links',
-			3
-		);
+	
 
-		add_submenu_page(
-			'wa-suit',
-			__( 'Módulos', 'wa-suit' ),
-			__( 'Módulos', 'wa-suit' ),
-			'manage_options',
-			'wa-suit',
-			array( $this, 'render_page' )
-		);
+public function add_menu() {
 
-		global $submenu;
-		if ( isset( $submenu['wa-suit'] ) ) {
-			$submenu['wa-suit'][] = array(
-				esc_html__( 'Configuração', 'wa-suit' ),
-				'manage_options',
-				admin_url( 'admin.php?page=wa-suit&tab=settings' ),
-			);
-		}
-	}
+    add_menu_page(
+        __( 'WA Web Design', 'wa-suit' ),
+        __( 'WA Web Design', 'wa-suit' ),
+        'manage_options',
+        'wa-suit',
+        array( $this, 'render_page' ),
+        'dashicons-admin-customizer',
+        3
+    );
+
+    add_submenu_page(
+        'wa-suit',
+        __( 'Painel', 'wa-suit' ),
+        __( 'Painel', 'wa-suit' ),
+        'manage_options',
+        'wa-suit',
+        array( $this, 'render_page' )
+    );
+
+    add_submenu_page(
+        'wa-suit',
+        __( 'Módulos', 'wa-suit' ),
+        __( 'Módulos', 'wa-suit' ),
+        'manage_options',
+        'wa-suit-modules',
+        array( $this, 'render_modules_menu_page' )
+    );
+
+    add_submenu_page(
+        'wa-suit',
+        __( 'Configuração', 'wa-suit' ),
+        __( 'Configuração', 'wa-suit' ),
+        'manage_options',
+        'wa-suit-settings',
+        array( $this, 'render_settings_menu_page' )
+    );
+}
 
 	/**
 	 * Enqueues assets only on plugin pages.
@@ -335,9 +346,9 @@ class WA_Suit_Admin {
 				<div class="wa-admin-header__left">
 					<div class="wa-admin-brand-info">
 						<h1 class="wa-admin-brand-title">
-							<?php echo esc_html__( 'Painel', 'wa-suit' ); ?>
+							<?php echo esc_html__( 'WA Web Design', 'wa-suit' ); ?>
 						</h1>
-						<span class="wa-admin-breadcrumb"><?php echo esc_html__( 'Painel / Módulos', 'wa-suit' ); ?></span>
+						<span class="wa-admin-breadcrumb"><?php echo esc_html__( 'Painel do plugin', 'wa-suit' ); ?></span>
 					</div>
 				</div>
 			</div>
@@ -347,6 +358,12 @@ class WA_Suit_Admin {
 				<ul class="wa-admin-nav-tabs">
 					<li class="wa-admin-nav-tab <?php echo 'dashboard' === $current_tab ? 'is-active' : ''; ?>">
 						<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=dashboard' ) ); ?>">
+							<span class="dashicons dashicons-admin-home"></span>
+							<?php echo esc_html__( 'Painel', 'wa-suit' ); ?>
+						</a>
+					</li>
+					<li class="wa-admin-nav-tab <?php echo 'modules' === $current_tab ? 'is-active' : ''; ?>">
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=modules' ) ); ?>">
 							<span class="dashicons dashicons-screenoptions"></span>
 							<?php echo esc_html__( 'Módulos', 'wa-suit' ); ?>
 						</a>
@@ -364,6 +381,8 @@ class WA_Suit_Admin {
 			<div class="wa-admin-content">
 				<?php
 				if ( 'dashboard' === $current_tab ) {
+					$this->render_home_tab();
+				} elseif ( 'modules' === $current_tab ) {
 					$this->render_dashboard_tab( $all_modules );
 				} elseif ( 'settings' === $current_tab ) {
 					$this->render_general_settings_tab();
@@ -378,7 +397,7 @@ class WA_Suit_Admin {
 						<div class="wa-admin-card">
 							<h3><?php echo esc_html__( 'Módulo não encontrado', 'wa-suit' ); ?></h3>
 							<p><?php echo esc_html__( 'O módulo selecionado não está disponível.', 'wa-suit' ); ?></p>
-							<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=dashboard' ) ); ?>" class="wa-admin-btn wa-admin-btn--primary">
+							<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=modules' ) ); ?>" class="wa-admin-btn wa-admin-btn--primary">
 								<?php echo esc_html__( 'Voltar aos Módulos', 'wa-suit' ); ?>
 							</a>
 						</div>
@@ -398,6 +417,32 @@ class WA_Suit_Admin {
 
 			<!-- Floating Toast Notification -->
 			<div id="wa-suit-toast" class="wa-admin-toast" aria-live="polite"></div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Renders the plugin home tab.
+	 *
+	 * @return void
+	 */
+	private function render_home_tab() {
+		?>
+		<div class="wa-admin-dashboard-wrap">
+			<div class="wa-admin-box">
+				<div class="wa-admin-box-content">
+					<h2><?php echo esc_html__( 'Bem-vindo ao WA Web Design', 'wa-suit' ); ?></h2>
+					<p><?php echo esc_html__( 'Acesse os módulos para ativar ferramentas e ajustar suas opções.', 'wa-suit' ); ?></p>
+					<p>
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=modules' ) ); ?>" class="button button-primary">
+							<?php echo esc_html__( 'Ver módulos', 'wa-suit' ); ?>
+						</a>
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=settings' ) ); ?>" class="button">
+							<?php echo esc_html__( 'Abrir configuração', 'wa-suit' ); ?>
+						</a>
+					</p>
+				</div>
+			</div>
 		</div>
 		<?php
 	}
@@ -476,7 +521,7 @@ class WA_Suit_Admin {
 		<div class="wa-admin-module-view">
 			<div class="wa-admin-module-view-header">
 				<div class="wa-admin-module-view-nav">
-					<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=dashboard' ) ); ?>" class="wa-admin-back-link">
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=modules' ) ); ?>" class="wa-admin-back-link">
 						<span class="dashicons dashicons-arrow-left-alt2"></span>
 						<?php echo esc_html__( 'Módulos', 'wa-suit' ); ?>
 					</a>
