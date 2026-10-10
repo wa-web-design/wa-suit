@@ -90,8 +90,8 @@ public function custom_admin_menu_icon_css() {
 
 public function add_menu() {
 	add_menu_page(
-		__( 'Wa Web Design', 'wa-suit' ),
-		__( 'Painel', 'wa-suit' ),
+		__( 'WA Suit', 'wa-suit' ),
+		__( 'WA Suit', 'wa-suit' ),
 		'manage_options',
 		'wa-suit',
 		array( $this, 'render_dashboard_menu_page' ),
