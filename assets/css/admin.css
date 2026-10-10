@@ -422,6 +422,7 @@
 
 .wa-admin-dashboard-wrap {
 	width: 100%;
+	padding: 0 25px;
 }
 
 /* Grade de módulos */
@@ -620,6 +621,7 @@
 
 .wa-admin-module-view {
 	width: 100%;
+	padding: 0 25px;
 }
 
 .wa-admin-module-view-header {

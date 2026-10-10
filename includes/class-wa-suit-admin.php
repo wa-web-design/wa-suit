@@ -91,7 +91,7 @@ public function custom_admin_menu_icon_css() {
 public function add_menu() {
 	add_menu_page(
 		__( 'Wa Web Design', 'wa-suit' ),
-		__( 'Wa Web Design', 'wa-suit' ),
+		__( 'Painel', 'wa-suit' ),
 		'manage_options',
 		'wa-suit',
 		array( $this, 'render_dashboard_menu_page' ),
@@ -424,20 +424,20 @@ public function render_settings_menu_page() {
             <img class="wa-admin-header__logo"
                 src="<?php echo esc_url( WA_SUIT_URL . 'assets/images/logo-wa-preto.svg' ); ?>" alt="WA WEB DESIGN">
         </div>
-		<nav class="wa-admin-tabs" aria-label="<?php esc_attr_e( 'Navegação do plugin', 'wa-suit' ); ?>">
-			<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit' ) ); ?>"
-				<?php echo ( 'modules' === $current_tab && ! $is_module_list ) ? 'aria-current="page"' : ''; ?>>
-				<?php echo esc_html__( 'Painel', 'wa-suit' ); ?>
-			</a>
-			<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit-modules' ) ); ?>"
-				<?php echo ( null !== $module || $is_module_list ) ? 'aria-current="page"' : ''; ?>>
-				<?php echo esc_html__( 'Módulo', 'wa-suit' ); ?>
-			</a>
-			<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit-settings' ) ); ?>"
-				<?php echo 'settings' === $current_tab ? 'aria-current="page"' : ''; ?>>
-				<?php echo esc_html__( 'Configuração', 'wa-suit' ); ?>
-			</a>
-		</nav>
+        <nav class="wa-admin-tabs" aria-label="<?php esc_attr_e( 'Navegação do plugin', 'wa-suit' ); ?>">
+            <a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit' ) ); ?>"
+                <?php echo ( 'modules' === $current_tab && ! $is_module_list ) ? 'aria-current="page"' : ''; ?>>
+                <?php echo esc_html__( 'Painel', 'wa-suit' ); ?>
+            </a>
+            <a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit-modules' ) ); ?>"
+                <?php echo ( null !== $module || $is_module_list ) ? 'aria-current="page"' : ''; ?>>
+                <?php echo esc_html__( 'Módulo', 'wa-suit' ); ?>
+            </a>
+            <a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit-settings' ) ); ?>"
+                <?php echo 'settings' === $current_tab ? 'aria-current="page"' : ''; ?>>
+                <?php echo esc_html__( 'Configuração', 'wa-suit' ); ?>
+            </a>
+        </nav>
     </div>
     <?php
 				if ( $module ) {
