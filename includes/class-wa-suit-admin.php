@@ -1,6 +1,6 @@
 <?php
 /**
- * Administration menu and dashboard.
+ * Administration menu and dashboard - Rank Math inspired layout.
  *
  * @package WASuit
  */
@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Handles the admin interface, tabs, and module switching.
+ * Handles the admin interface, tabs, and module switching in Rank Math style.
  */
 class WA_Suit_Admin {
 
@@ -27,20 +27,6 @@ class WA_Suit_Admin {
 	 * @var WA_Suit_Module_Loader
 	 */
 	private $module_loader;
-
-	/**
-	 * Status message for notifications.
-	 *
-	 * @var string
-	 */
-	private $notice_message = '';
-
-	/**
-	 * Status type for notifications.
-	 *
-	 * @var string
-	 */
-	private $notice_type = 'success';
 
 	/**
 	 * Sets up the administration controller.
@@ -62,35 +48,35 @@ class WA_Suit_Admin {
 		add_action( 'admin_menu', array( $this, 'add_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'wp_ajax_wa_suit_toggle_module', array( $this, 'ajax_toggle_module' ) );
-		add_action( 'admin_init', array( $this, 'handle_save_tab_settings' ) );
 	}
 
 	/**
-	 * Adds the admin menu and dynamic submenus.
+	 * Adds the admin menu right under Dashboard (Painel) at the highest order (position 3).
 	 *
 	 * @return void
 	 */
 	public function add_menu() {
+		// Position 3 places the menu immediately below Dashboard (2), above Posts (5).
 		add_menu_page(
 			__( 'WA Web Design', 'wa-suit' ),
 			__( 'WA Web Design', 'wa-suit' ),
 			'manage_options',
 			'wa-suit',
 			array( $this, 'render_page' ),
-			'dashicons-art',
-			62
+			'dashicons-admin-links',
+			3
 		);
 
 		add_submenu_page(
 			'wa-suit',
-			__( 'Painel Geral - WA Web Design', 'wa-suit' ),
+			__( 'Visão Geral - WA Web Design', 'wa-suit' ),
 			__( 'Painel Geral', 'wa-suit' ),
 			'manage_options',
 			'wa-suit',
 			array( $this, 'render_page' )
 		);
 
-		// Add dynamic submenus for each active module.
+		// Dynamic submenu for active modules (Rank Math style)
 		$registry       = $this->module_loader->get_registry();
 		$active_modules = $registry->get_active();
 
@@ -99,7 +85,6 @@ class WA_Suit_Admin {
 				continue;
 			}
 
-			// Add direct link submenu under WA Web Design.
 			global $submenu;
 			if ( isset( $submenu['wa-suit'] ) ) {
 				$tab_url = admin_url( 'admin.php?page=wa-suit&tab=' . rawurlencode( $module->get_id() ) );
@@ -113,7 +98,7 @@ class WA_Suit_Admin {
 	}
 
 	/**
-	 * Enqueues assets only on the plugin pages.
+	 * Enqueues assets only on plugin pages.
 	 *
 	 * @param string $hook_suffix Current admin page hook.
 	 * @return void
@@ -151,19 +136,20 @@ class WA_Suit_Admin {
 				'adminUrl'   => admin_url( 'admin.php?page=wa-suit' ),
 				'currentTab' => $current_tab,
 				'strings'    => array(
-					'moduleEnabled'  => __( 'Função ativada com sucesso!', 'wa-suit' ),
-					'moduleDisabled' => __( 'Função desativada.', 'wa-suit' ),
-					'error'          => __( 'Erro ao atualizar a função.', 'wa-suit' ),
-					'configure'      => __( 'Configurar', 'wa-suit' ),
-					'active'         => __( 'Ativo', 'wa-suit' ),
-					'inactive'       => __( 'Inativo', 'wa-suit' ),
+					'copied'     => __( 'Copiado!', 'wa-suit' ),
+					'copy'       => __( 'Copiar', 'wa-suit' ),
+					'confirmDel' => __( 'Tem certeza que deseja excluir este link?', 'wa-suit' ),
+					'saving'     => __( 'Salvando...', 'wa-suit' ),
+					'save'       => __( 'Salvar Link', 'wa-suit' ),
+					'active'     => __( 'Ativo', 'wa-suit' ),
+					'inactive'   => __( 'Inativo', 'wa-suit' ),
 				),
 			)
 		);
 	}
 
 	/**
-	 * Handles AJAX request to toggle module activation.
+	 * Handles AJAX module toggle.
 	 *
 	 * @return void
 	 */
@@ -195,14 +181,12 @@ class WA_Suit_Admin {
 
 		wp_send_json_success(
 			array(
-				'module_id'        => $module_id,
-				'state'            => $state,
-				'active_count'     => $active_count,
-				'title'            => $module->get_title(),
-				'icon'             => $module->get_icon(),
-				'has_settings_tab' => $module->has_settings_tab(),
-				'tab_url'          => admin_url( 'admin.php?page=wa-suit&tab=' . rawurlencode( $module_id ) ),
-				'message'          => $state
+				'module_id'    => $module_id,
+				'state'        => $state,
+				'active_count' => $active_count,
+				'title'        => $module->get_title(),
+				'tab_url'      => admin_url( 'admin.php?page=wa-suit&tab=' . rawurlencode( $module_id ) ),
+				'message'      => $state
 					? sprintf( __( '"%s" foi ativado.', 'wa-suit' ), $module->get_title() )
 					: sprintf( __( '"%s" foi desativado.', 'wa-suit' ), $module->get_title() ),
 			)
@@ -210,38 +194,7 @@ class WA_Suit_Admin {
 	}
 
 	/**
-	 * Handles POST submissions for saving tab settings.
-	 *
-	 * @return void
-	 */
-	public function handle_save_tab_settings() {
-		if ( ! isset( $_POST['wa_suit_save_action'] ) ) {
-			return;
-		}
-
-		if ( ! WA_Suit_Security::can_manage_settings() ) {
-			wp_die( esc_html__( 'Você não tem permissão para realizar esta ação.', 'wa-suit' ) );
-		}
-
-		$nonce = isset( $_POST['wa_suit_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['wa_suit_nonce'] ) ) : '';
-		if ( ! WA_Suit_Security::verify_nonce( $nonce ) ) {
-			$this->notice_message = __( 'Erro de segurança: token inválido. Tente novamente.', 'wa-suit' );
-			$this->notice_type    = 'error';
-			return;
-		}
-
-		$module_id = isset( $_POST['module_id'] ) ? sanitize_key( $_POST['module_id'] ) : '';
-		$module    = $this->module_loader->get_registry()->get_module( $module_id );
-
-		if ( $module ) {
-			$module->save_tab_settings( wp_unslash( $_POST ) );
-			$this->notice_message = sprintf( __( 'Configurações de "%s" salvas com sucesso!', 'wa-suit' ), $module->get_title() );
-			$this->notice_type    = 'success';
-		}
-	}
-
-	/**
-	 * Renders the main administration interface.
+	 * Renders main administrative interface.
 	 *
 	 * @return void
 	 */
@@ -255,355 +208,249 @@ class WA_Suit_Admin {
 		$active_modules = $registry->get_active();
 
 		$current_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'dashboard';
-
-		// Extract unique categories for filter.
-		$categories = array();
-		foreach ( $all_modules as $mod ) {
-			$cat = $mod->get_category();
-			if ( ! in_array( $cat, $categories, true ) ) {
-				$categories[] = $cat;
-			}
-		}
-		sort( $categories );
 		?>
-		<div class="wrap wa-suit-wrap">
-			<!-- Header Banner -->
-			<header class="wa-suit-header">
-				<div class="wa-suit-header__brand">
-					<div class="wa-suit-header__logo">WA</div>
-					<div class="wa-suit-header__info">
-						<h1><?php echo esc_html__( 'WA Web Design', 'wa-suit' ); ?> <span class="wa-suit-header__badge">Suite v<?php echo esc_html( WA_SUIT_VERSION ); ?></span></h1>
-						<p><?php echo esc_html__( 'Painel de Recursos, Ferramentas & Otimizações para Clientes', 'wa-suit' ); ?></p>
+		<div class="wrap wa-rm-wrap">
+			<!-- Subtle Top Gradient Detail Bar -->
+			<div class="wa-rm-gradient-bar"></div>
+
+			<!-- Rank Math Inspired Header Bar -->
+			<div class="wa-rm-header">
+				<div class="wa-rm-header__left">
+					<div class="wa-rm-brand-logo">WA</div>
+					<div class="wa-rm-brand-info">
+						<h1 class="wa-rm-brand-title">
+							<?php echo esc_html__( 'WA Web Design', 'wa-suit' ); ?>
+							<span class="wa-rm-badge-version">SUITE</span>
+						</h1>
+						<span class="wa-rm-breadcrumb"><?php echo esc_html__( 'Dashboard / Módulos', 'wa-suit' ); ?></span>
 					</div>
 				</div>
-				<div class="wa-suit-header__stats">
-					<div class="wa-suit-stat-box">
-						<span class="wa-suit-stat-label"><?php echo esc_html__( 'Total de Funções', 'wa-suit' ); ?></span>
-						<span class="wa-suit-stat-value"><?php echo esc_html( count( $all_modules ) ); ?></span>
-					</div>
-					<div class="wa-suit-stat-box">
-						<span class="wa-suit-stat-label"><?php echo esc_html__( 'Funções Ativas', 'wa-suit' ); ?></span>
-						<span class="wa-suit-stat-value wa-suit-stat-active-count"><?php echo esc_html( count( $active_modules ) ); ?></span>
-					</div>
-					<div class="wa-suit-stat-box wa-suit-stat-status">
-						<span class="wa-suit-stat-label"><?php echo esc_html__( 'Status Geral', 'wa-suit' ); ?></span>
-						<span class="wa-suit-stat-value wa-suit-text-success"><span class="wa-suit-status-dot"></span> <?php echo esc_html__( 'Ativo', 'wa-suit' ); ?></span>
+
+				<div class="wa-rm-header__right">
+					<div class="wa-rm-status-pill">
+						<span class="wa-rm-dot-live"></span>
+						<span><?php echo esc_html__( 'Sistema Ativo', 'wa-suit' ); ?></span>
 					</div>
 				</div>
-			</header>
-
-			<?php if ( ! empty( $this->notice_message ) ) : ?>
-				<div class="wa-suit-notice wa-suit-notice--<?php echo esc_attr( $this->notice_type ); ?>">
-					<p><?php echo esc_html( $this->notice_message ); ?></p>
-				</div>
-			<?php endif; ?>
-
-			<!-- Main Container with Sidebar Tabs and Content -->
-			<div class="wa-suit-layout">
-				<!-- Left Sidebar: Tabs Navigation -->
-				<aside class="wa-suit-sidebar">
-					<nav class="wa-suit-nav" aria-label="<?php esc_attr_e( 'Navegação de Funções', 'wa-suit' ); ?>">
-						<!-- Main Dashboard Tab -->
-						<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=dashboard' ) ); ?>"
-							class="wa-suit-nav__item <?php echo 'dashboard' === $current_tab ? 'is-active' : ''; ?>">
-							<span class="dashicons dashicons-admin-generic"></span>
-							<span class="wa-suit-nav__title"><?php echo esc_html__( 'Painel de Funções', 'wa-suit' ); ?></span>
-							<span class="wa-suit-nav__badge"><?php echo esc_html( count( $all_modules ) ); ?></span>
-						</a>
-
-						<!-- Section Heading: Active Modules -->
-						<div class="wa-suit-nav__heading">
-							<span><?php echo esc_html__( 'Abas de Funções Ativas', 'wa-suit' ); ?></span>
-						</div>
-
-						<div class="wa-suit-nav__modules-list" id="wa-suit-active-nav-list">
-							<?php
-							$has_active_tabs = false;
-							foreach ( $all_modules as $mod ) :
-								$is_active = $mod->is_active();
-								if ( ! $mod->has_settings_tab() ) {
-									continue;
-								}
-								if ( $is_active ) {
-									$has_active_tabs = true;
-								}
-								$is_current = ( $current_tab === $mod->get_id() );
-								?>
-								<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=' . rawurlencode( $mod->get_id() ) ) ); ?>"
-									class="wa-suit-nav__item wa-suit-nav__item--module <?php echo $is_current ? 'is-active' : ''; ?>"
-									data-nav-module="<?php echo esc_attr( $mod->get_id() ); ?>"
-									style="<?php echo $is_active ? '' : 'display: none;'; ?>">
-									<span class="dashicons <?php echo esc_attr( $mod->get_icon() ); ?>"></span>
-									<span class="wa-suit-nav__title"><?php echo esc_html( $mod->get_title() ); ?></span>
-									<span class="wa-suit-status-dot wa-suit-status-dot--green" title="<?php esc_attr_e( 'Módulo Ativo', 'wa-suit' ); ?>"></span>
-								</a>
-							<?php endforeach; ?>
-
-							<div class="wa-suit-nav__empty" id="wa-suit-nav-empty" style="<?php echo $has_active_tabs ? 'display: none;' : ''; ?>">
-								<small><?php echo esc_html__( 'Nenhuma função ativa. Ative uma função ao lado para acessar sua aba de configurações.', 'wa-suit' ); ?></small>
-							</div>
-						</div>
-
-						<!-- Section Heading: About -->
-						<div class="wa-suit-nav__heading">
-							<span><?php echo esc_html__( 'Informações', 'wa-suit' ); ?></span>
-						</div>
-
-						<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=about' ) ); ?>"
-							class="wa-suit-nav__item <?php echo 'about' === $current_tab ? 'is-active' : ''; ?>">
-							<span class="dashicons dashicons-info"></span>
-							<span class="wa-suit-nav__title"><?php echo esc_html__( 'Sobre a WA Web Design', 'wa-suit' ); ?></span>
-						</a>
-					</nav>
-				</aside>
-
-				<!-- Right Area: Tab Content -->
-				<main class="wa-suit-content">
-					<?php
-					if ( 'dashboard' === $current_tab ) {
-						$this->render_dashboard_tab( $all_modules, $categories );
-					} elseif ( 'about' === $current_tab ) {
-						$this->render_about_tab();
-					} else {
-						$current_module = $registry->get_module( $current_tab );
-						if ( $current_module ) {
-							$this->render_module_tab( $current_module );
-						} else {
-							?>
-							<div class="wa-suit-card">
-								<h2><?php echo esc_html__( 'Aba não encontrada', 'wa-suit' ); ?></h2>
-								<p><?php echo esc_html__( 'A função solicitada não foi encontrada ou foi removida.', 'wa-suit' ); ?></p>
-								<p><a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=dashboard' ) ); ?>" class="button button-primary"><?php echo esc_html__( 'Voltar ao Painel Geral', 'wa-suit' ); ?></a></p>
-							</div>
-							<?php
-						}
-					}
-					?>
-				</main>
 			</div>
 
-			<!-- Toast Notification Floating Box -->
-			<div id="wa-suit-toast" class="wa-suit-toast" aria-live="polite"></div>
+			<!-- Rank Math Sub-Navigation Tab Bar -->
+			<div class="wa-rm-nav-bar">
+				<ul class="wa-rm-nav-tabs">
+					<li class="wa-rm-nav-tab <?php echo 'dashboard' === $current_tab ? 'is-active' : ''; ?>">
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=dashboard' ) ); ?>">
+							<span class="dashicons dashicons-screenoptions"></span>
+							<?php echo esc_html__( 'Módulos', 'wa-suit' ); ?>
+						</a>
+					</li>
+
+					<?php foreach ( $all_modules as $mod ) :
+						$is_active = $mod->is_active();
+						if ( ! $mod->has_settings_tab() ) {
+							continue;
+						}
+						$is_current = ( $current_tab === $mod->get_id() );
+						?>
+						<li class="wa-rm-nav-tab wa-rm-nav-tab--module <?php echo $is_current ? 'is-active' : ''; ?>"
+							data-nav-module="<?php echo esc_attr( $mod->get_id() ); ?>"
+							style="<?php echo $is_active ? '' : 'display: none;'; ?>">
+							<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=' . rawurlencode( $mod->get_id() ) ) ); ?>">
+								<span class="dashicons <?php echo esc_attr( $mod->get_icon() ); ?>"></span>
+								<?php echo esc_html( $mod->get_title() ); ?>
+							</a>
+						</li>
+					<?php endforeach; ?>
+
+					<li class="wa-rm-nav-tab <?php echo 'help' === $current_tab ? 'is-active' : ''; ?>">
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=help' ) ); ?>">
+							<span class="dashicons dashicons-editor-help"></span>
+							<?php echo esc_html__( 'Ajuda', 'wa-suit' ); ?>
+						</a>
+					</li>
+				</ul>
+			</div>
+
+			<!-- Main Tab Content Area -->
+			<div class="wa-rm-content">
+				<?php
+				if ( 'dashboard' === $current_tab ) {
+					$this->render_dashboard_tab( $all_modules );
+				} elseif ( 'help' === $current_tab ) {
+					$this->render_help_tab();
+				} else {
+					$active_module = $registry->get_module( $current_tab );
+					if ( $active_module ) {
+						$this->render_module_tab( $active_module );
+					} else {
+						?>
+						<div class="wa-rm-card">
+							<h3><?php echo esc_html__( 'Módulo não encontrado', 'wa-suit' ); ?></h3>
+							<p><?php echo esc_html__( 'O módulo selecionado não está disponível.', 'wa-suit' ); ?></p>
+							<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=dashboard' ) ); ?>" class="wa-rm-btn wa-rm-btn--primary">
+								<?php echo esc_html__( 'Voltar aos Módulos', 'wa-suit' ); ?>
+							</a>
+						</div>
+						<?php
+					}
+				}
+				?>
+			</div>
+
+			<!-- Rank Math Footer Note -->
+			<div class="wa-rm-footer">
+				<p>
+					<?php echo esc_html__( 'Desenvolvido por', 'wa-suit' ); ?>
+					<strong>WA Web Design</strong> &bull; <?php echo esc_html__( 'Versão', 'wa-suit' ); ?> <?php echo esc_html( WA_SUIT_VERSION ); ?>
+				</p>
+			</div>
+
+			<!-- Floating Toast Notification -->
+			<div id="wa-suit-toast" class="wa-rm-toast" aria-live="polite"></div>
 		</div>
 		<?php
 	}
 
 	/**
-	 * Renders the main Dashboard tab with modules list and switches.
+	 * Renders Rank Math style Modules Dashboard.
 	 *
-	 * @param array $all_modules List of all registered modules.
-	 * @param array $categories List of categories.
+	 * @param array $all_modules List of registered modules.
 	 * @return void
 	 */
-	private function render_dashboard_tab( $all_modules, $categories ) {
+	private function render_dashboard_tab( $all_modules ) {
 		?>
-		<div class="wa-suit-dashboard">
-			<!-- Toolbar: Search & Filters -->
-			<div class="wa-suit-toolbar">
-				<div class="wa-suit-toolbar__filters">
-					<button type="button" class="wa-suit-filter-btn is-active" data-filter="all">
-						<?php echo esc_html__( 'Todas', 'wa-suit' ); ?> (<?php echo esc_html( count( $all_modules ) ); ?>)
-					</button>
-					<?php foreach ( $categories as $category ) : ?>
-						<button type="button" class="wa-suit-filter-btn" data-filter="<?php echo esc_attr( sanitize_title( $category ) ); ?>">
-							<?php echo esc_html( $category ); ?>
-						</button>
-					<?php endforeach; ?>
-				</div>
-
-				<div class="wa-suit-toolbar__search">
-					<span class="dashicons dashicons-search"></span>
-					<input type="text" id="wa-suit-search-input" placeholder="<?php esc_attr_e( 'Buscar funções...', 'wa-suit' ); ?>">
-				</div>
-			</div>
-
-			<!-- Grid of Module Cards -->
-			<div class="wa-suit-grid" id="wa-suit-modules-grid">
-				<?php foreach ( $all_modules as $module ) :
-					$is_active = $module->is_active();
-					$mod_id    = $module->get_id();
-					$category  = $module->get_category();
-					$cat_slug  = sanitize_title( $category );
+		<div class="wa-rm-dashboard-wrap">
+			<!-- Rank Math Grid of Modules -->
+			<div class="wa-rm-modules-grid">
+				<?php foreach ( $all_modules as $mod ) :
+					$is_active = $mod->is_active();
+					$mod_id    = $mod->get_id();
 					?>
-					<div class="wa-suit-card wa-suit-card--module <?php echo $is_active ? 'is-active' : 'is-inactive'; ?>"
-						data-module-card="<?php echo esc_attr( $mod_id ); ?>"
-						data-category="<?php echo esc_attr( $cat_slug ); ?>"
-						data-title="<?php echo esc_attr( strtolower( $module->get_title() ) ); ?>"
-						data-description="<?php echo esc_attr( strtolower( $module->get_description() ) ); ?>">
-
-						<div class="wa-suit-card__header">
-							<div class="wa-suit-card__icon-wrapper">
-								<span class="dashicons <?php echo esc_attr( $module->get_icon() ); ?>"></span>
+					<div class="wa-rm-box wa-rm-module-box <?php echo $is_active ? 'is-active' : 'is-inactive'; ?>" data-module-card="<?php echo esc_attr( $mod_id ); ?>">
+						<!-- Card Header: Title + Badges -->
+						<header class="wa-rm-box-header">
+							<div class="wa-rm-box-title-wrap">
+								<span class="dashicons <?php echo esc_attr( $mod->get_icon() ); ?> wa-rm-module-icon"></span>
+								<h3 class="wa-rm-box-title"><?php echo esc_html( $mod->get_title() ); ?></h3>
 							</div>
-							<span class="wa-suit-category-badge"><?php echo esc_html( $category ); ?></span>
+							<span class="wa-rm-badge-tag"><?php echo esc_html( $mod->get_category() ); ?></span>
+						</header>
+
+						<!-- Card Content: Description -->
+						<div class="wa-rm-box-content">
+							<p><?php echo esc_html( $mod->get_description() ); ?></p>
 						</div>
 
-						<div class="wa-suit-card__body">
-							<h3 class="wa-suit-card__title"><?php echo esc_html( $module->get_title() ); ?></h3>
-							<p class="wa-suit-card__description"><?php echo esc_html( $module->get_description() ); ?></p>
-						</div>
-
-						<div class="wa-suit-card__footer">
-							<div class="wa-suit-card__switch-area">
-								<label class="wa-suit-switch" title="<?php esc_attr_e( 'Ativar ou desativar esta função', 'wa-suit' ); ?>">
-									<input type="checkbox"
-										class="wa-suit-module-toggle"
-										data-module-id="<?php echo esc_attr( $mod_id ); ?>"
-										<?php checked( $is_active ); ?>>
-									<span class="wa-suit-slider"></span>
-								</label>
-								<span class="wa-suit-status-pill <?php echo $is_active ? 'is-active' : 'is-inactive'; ?>" data-status-label="<?php echo esc_attr( $mod_id ); ?>">
-									<?php echo $is_active ? esc_html__( 'Ativo', 'wa-suit' ) : esc_html__( 'Inativo', 'wa-suit' ); ?>
-								</span>
-							</div>
-
-							<?php if ( $module->has_settings_tab() ) : ?>
-								<div class="wa-suit-card__action-area" data-action-area="<?php echo esc_attr( $mod_id ); ?>" style="<?php echo $is_active ? '' : 'display: none;'; ?>">
-									<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=' . rawurlencode( $mod_id ) ) ); ?>" class="wa-suit-btn-config">
-										<?php echo esc_html__( 'Configurar', 'wa-suit' ); ?>
+						<!-- Card Footer: Settings Link on Left, Switch on Right -->
+						<footer class="wa-rm-box-footer">
+							<div class="wa-rm-box-status">
+								<?php if ( $mod->has_settings_tab() ) : ?>
+									<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=' . rawurlencode( $mod_id ) ) ); ?>"
+										class="wa-rm-settings-link"
+										data-action-area="<?php echo esc_attr( $mod_id ); ?>"
+										style="<?php echo $is_active ? '' : 'display: none;'; ?>">
+										<span class="dashicons dashicons-admin-generic"></span>
+										<?php echo esc_html__( 'Configurações', 'wa-suit' ); ?>
 										<span class="dashicons dashicons-arrow-right-alt2"></span>
 									</a>
-								</div>
-							<?php endif; ?>
-						</div>
+								<?php endif; ?>
+							</div>
+
+							<div class="wa-rm-box-actions">
+								<label class="wa-rm-switch" title="<?php esc_attr_e( 'Ativar ou desativar módulo', 'wa-suit' ); ?>">
+									<input type="checkbox"
+										class="wa-rm-module-toggle"
+										data-module-id="<?php echo esc_attr( $mod_id ); ?>"
+										<?php checked( $is_active ); ?>>
+									<span class="wa-rm-slider"></span>
+								</label>
+							</div>
+						</footer>
 					</div>
 				<?php endforeach; ?>
 			</div>
-
-			<div class="wa-suit-empty-search" id="wa-suit-empty-search" style="display: none;">
-				<span class="dashicons dashicons-warning"></span>
-				<p><?php echo esc_html__( 'Nenhuma função encontrada com os critérios pesquisados.', 'wa-suit' ); ?></p>
-			</div>
 		</div>
 		<?php
 	}
 
 	/**
-	 * Renders a specific module's settings tab.
+	 * Renders module settings tab view (Rank Math Style).
 	 *
-	 * @param WA_Suit_Module_Base $module Module instance.
+	 * @param WA_Suit_Module_Base $module Module object.
 	 * @return void
 	 */
 	private function render_module_tab( $module ) {
 		$is_active = $module->is_active();
 		?>
-		<div class="wa-suit-module-view">
-			<!-- Breadcrumb & Top Bar -->
-			<div class="wa-suit-module-view__header">
-				<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=dashboard' ) ); ?>" class="wa-suit-back-link">
-					<span class="dashicons dashicons-arrow-left-alt2"></span>
-					<?php echo esc_html__( 'Voltar ao Painel Geral', 'wa-suit' ); ?>
-				</a>
+		<div class="wa-rm-module-view">
+			<div class="wa-rm-module-view-header">
+				<div class="wa-rm-module-view-nav">
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=dashboard' ) ); ?>" class="wa-rm-back-link">
+						<span class="dashicons dashicons-arrow-left-alt2"></span>
+						<?php echo esc_html__( 'Módulos', 'wa-suit' ); ?>
+					</a>
+					<span class="wa-rm-sep">/</span>
+					<span class="wa-rm-current"><?php echo esc_html( $module->get_title() ); ?></span>
+				</div>
 
-				<div class="wa-suit-module-view__title-row">
-					<div class="wa-suit-module-view__identity">
-						<div class="wa-suit-module-view__icon">
-							<span class="dashicons <?php echo esc_attr( $module->get_icon() ); ?>"></span>
-						</div>
-						<div>
-							<h2><?php echo esc_html( $module->get_title() ); ?></h2>
-							<p class="wa-suit-module-view__desc"><?php echo esc_html( $module->get_description() ); ?></p>
-						</div>
-					</div>
-
-					<div class="wa-suit-module-view__toggle">
-						<label class="wa-suit-switch" title="<?php esc_attr_e( 'Ativar/Desativar', 'wa-suit' ); ?>">
-							<input type="checkbox"
-								class="wa-suit-module-toggle"
-								data-module-id="<?php echo esc_attr( $module->get_id() ); ?>"
-								<?php checked( $is_active ); ?>>
-							<span class="wa-suit-slider"></span>
-						</label>
-						<span class="wa-suit-status-pill <?php echo $is_active ? 'is-active' : 'is-inactive'; ?>" data-status-label="<?php echo esc_attr( $module->get_id() ); ?>">
-							<?php echo $is_active ? esc_html__( 'Ativo', 'wa-suit' ) : esc_html__( 'Inativo', 'wa-suit' ); ?>
-						</span>
-					</div>
+				<div class="wa-rm-module-view-actions">
+					<label class="wa-rm-switch">
+						<input type="checkbox"
+							class="wa-rm-module-toggle"
+							data-module-id="<?php echo esc_attr( $module->get_id() ); ?>"
+							<?php checked( $is_active ); ?>>
+						<span class="wa-rm-slider"></span>
+					</label>
+					<span class="wa-rm-toggle-status" data-status-label="<?php echo esc_attr( $module->get_id() ); ?>">
+						<?php echo $is_active ? esc_html__( 'Ativo', 'wa-suit' ) : esc_html__( 'Inativo', 'wa-suit' ); ?>
+					</span>
 				</div>
 			</div>
 
-			<!-- Notice if module is currently disabled -->
-			<div class="wa-suit-module-inactive-notice" data-inactive-notice="<?php echo esc_attr( $module->get_id() ); ?>" style="<?php echo $is_active ? 'display: none;' : ''; ?>">
-				<span class="dashicons dashicons-info"></span>
-				<p><?php echo esc_html__( 'Aviso: Esta função está atualmente DESATIVADA. Você pode ajustar as opções abaixo, mas elas só terão efeito no site quando a função for ativada no switch acima.', 'wa-suit' ); ?></p>
-			</div>
-
-			<!-- Module Settings Form -->
-			<div class="wa-suit-card wa-suit-form-card">
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=' . rawurlencode( $module->get_id() ) ) ); ?>">
-					<input type="hidden" name="wa_suit_save_action" value="1">
-					<input type="hidden" name="module_id" value="<?php echo esc_attr( $module->get_id() ); ?>">
-					<input type="hidden" name="wa_suit_nonce" value="<?php echo esc_attr( WA_Suit_Security::create_nonce() ); ?>">
-
-					<div class="wa-suit-tab-fields">
-						<?php $module->render_tab(); ?>
-					</div>
-
-					<div class="wa-suit-form-actions">
-						<button type="submit" class="button button-primary button-large wa-suit-submit-btn">
-							<span class="dashicons dashicons-saved"></span>
-							<?php echo esc_html__( 'Salvar Alterações', 'wa-suit' ); ?>
-						</button>
-					</div>
-				</form>
+			<div class="wa-rm-module-view-body">
+				<?php $module->render_tab(); ?>
 			</div>
 		</div>
 		<?php
 	}
 
 	/**
-	 * Renders the "About WA Web Design" tab with developer guides.
+	 * Renders Help tab.
 	 *
 	 * @return void
 	 */
-	private function render_about_tab() {
+	private function render_help_tab() {
 		?>
-		<div class="wa-suit-about">
-			<div class="wa-suit-card wa-suit-about-hero">
-				<div class="wa-suit-about-hero__badge">WA WEB DESIGN</div>
-				<h2><?php echo esc_html__( 'Transformamos ideias em experiências digitais de alto impacto', 'wa-suit' ); ?></h2>
+		<div class="wa-rm-box wa-rm-help-box">
+			<header class="wa-rm-box-header">
+				<h3 class="wa-rm-box-title">
+					<span class="dashicons dashicons-welcome-learn-more"></span>
+					<?php echo esc_html__( 'Guia de Uso: Links Dinâmicos no Elementor', 'wa-suit' ); ?>
+				</h3>
+			</header>
+
+			<div class="wa-rm-box-content wa-rm-help-content">
 				<p>
-					<?php echo esc_html__( 'Este plugin foi desenvolvido com tecnologia modular pela WA Web Design para equipar sites WordPress com ferramentas essenciais de conversão, performance, segurança e usabilidade.', 'wa-suit' ); ?>
+					<?php echo esc_html__( 'O módulo de Links Dinâmicos permite que você cadastre links estratégicos (como WhatsApp, Checkout, Agendamento) em um único lugar e utilize shortcodes em todos os botões do Elementor.', 'wa-suit' ); ?>
 				</p>
-				<div class="wa-suit-about-hero__actions">
-					<a href="https://wawebdesign.com.br" target="_blank" rel="noopener noreferrer" class="button button-primary button-large">
-						<span class="dashicons dashicons-external"></span>
-						<?php echo esc_html__( 'Visitar WA Web Design', 'wa-suit' ); ?>
-					</a>
+
+				<div class="wa-rm-help-grid">
+					<div class="wa-rm-help-col">
+						<h4>1. <?php echo esc_html__( 'Cadastrar o Link', 'wa-suit' ); ?></h4>
+						<p><?php echo esc_html__( 'Na aba "Links Dinâmicos", clique em "+ Novo Link", defina um nome (ex: WhatsApp Geral) e a URL completa.', 'wa-suit' ); ?></p>
+					</div>
+					<div class="wa-rm-help-col">
+						<h4>2. <?php echo esc_html__( 'Copiar o Shortcode', 'wa-suit' ); ?></h4>
+						<p><?php echo esc_html__( 'Clique no botão "Copiar" ao lado do link para copiar [wa_link id="slug"].', 'wa-suit' ); ?></p>
+					</div>
+					<div class="wa-rm-help-col">
+						<h4>3. <?php echo esc_html__( 'Usar no Elementor', 'wa-suit' ); ?></h4>
+						<p><?php echo esc_html__( 'No Elementor, cole o shortcode diretamente no campo de Link do botão ou selecione a Tag Dinâmica > Shortcode.', 'wa-suit' ); ?></p>
+					</div>
+					<div class="wa-rm-help-col">
+						<h4>4. <?php echo esc_html__( 'Alteração Global Instantânea', 'wa-suit' ); ?></h4>
+						<p><?php echo esc_html__( 'Quando o número ou a URL mudar, edite uma única vez no painel. Todos os botões do site serão atualizados na hora!', 'wa-suit' ); ?></p>
+					</div>
 				</div>
-			</div>
-
-			<!-- Developer Guide: How to add a new function -->
-			<div class="wa-suit-card wa-suit-dev-guide">
-				<h3><span class="dashicons dashicons-code-standards"></span> <?php echo esc_html__( 'Como adicionar uma nova função no plugin?', 'wa-suit' ); ?></h3>
-				<p>
-					<?php echo esc_html__( 'Para criar uma nova funcionalidade, basta criar um novo arquivo PHP dentro da pasta', 'wa-suit' ); ?>
-					<code>modules/</code> (por exemplo, <code>modules/minha-funcao.php</code> ou <code>modules/minha-funcao/minha-funcao.php</code>)
-					<?php echo esc_html__( 'estendendo a classe base:', 'wa-suit' ); ?>
-				</p>
-
-				<pre class="wa-suit-code-block"><code>&lt;?php
-class WA_Suit_Module_Minha_Funcao extends WA_Suit_Module_Base {
-    public function get_id()          { return 'minha-funcao'; }
-    public function get_title()       { return 'Minha Nova Função'; }
-    public function get_description() { return 'Descrição clara do recurso.'; }
-    public function get_icon()        { return 'dashicons-star-filled'; }
-    public function get_category()    { return 'Ferramentas'; }
-
-    // Roda quando a função for ativada pelo usuário:
-    public function init() {
-        add_action( 'wp_footer', array( $this, 'meu_codigo' ) );
-    }
-
-    // Formulário de configurações na aba lateral:
-    public function render_tab() {
-        echo '&lt;p&gt;Campos de configuração aqui...&lt;/p&gt;';
-    }
-}
-wa_suit_register_module( new WA_Suit_Module_Minha_Funcao() );</code></pre>
-
-				<p class="description">
-					<?php echo esc_html__( 'O painel detectará a nova função automaticamente, criará o switch de ativação/desativação e exibirá sua aba lateral na navegação quando ativada!', 'wa-suit' ); ?>
-				</p>
 			</div>
 		</div>
 		<?php

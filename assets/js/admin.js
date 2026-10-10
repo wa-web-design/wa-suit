@@ -1,6 +1,6 @@
 /**
- * WA Suit - Modern Admin JavaScript
- * Handles AJAX toggling, sidebar tabs visibility, filters, and notifications.
+ * WA Web Design - Apple-Inspired Admin JavaScript
+ * Handles AJAX toggling, Dynamic Links CRUD and 1-click shortcode copying.
  */
 
 (function ($) {
@@ -11,38 +11,30 @@
 		let toastTimer = null;
 
 		/**
-		 * Displays a floating toast notification.
+		 * Shows clean floating toast notification.
 		 *
 		 * @param {string} message Text to display.
-		 * @param {string} type 'success' or 'error'.
 		 */
-		function showToast(message, type) {
-			type = type || 'success';
-
+		function showToast(message) {
 			clearTimeout(toastTimer);
-
-			$toast
-				.text(message)
-				.removeClass('wa-suit-toast--success wa-suit-toast--error')
-				.addClass('wa-suit-toast--' + type)
-				.addClass('is-visible');
+			$toast.text(message).addClass('is-visible');
 
 			toastTimer = setTimeout(function () {
 				$toast.removeClass('is-visible');
-			}, 3500);
+			}, 3000);
 		}
 
 		/**
-		 * Handles module toggle switch change.
+		 * 1. Module Switch Toggle (AJAX)
 		 */
-		$(document).on('change', '.wa-suit-module-toggle', function () {
+		$(document).on('change', '.wa-rm-module-toggle, .wa-apple-module-toggle', function () {
 			const $checkbox = $(this);
 			const moduleId = $checkbox.data('module-id');
 			const isChecked = $checkbox.is(':checked');
 			const state = isChecked ? 1 : 0;
 
-			// Sync all toggles for this module if multiple exist (e.g. card & tab top)
-			$('.wa-suit-module-toggle[data-module-id="' + moduleId + '"]')
+			// Sync toggles if multiple exist (card & header)
+			$('.wa-rm-module-toggle[data-module-id="' + moduleId + '"], .wa-apple-module-toggle[data-module-id="' + moduleId + '"]')
 				.not($checkbox)
 				.prop('checked', isChecked);
 
@@ -63,118 +55,305 @@
 
 					if (response.success) {
 						const data = response.data;
-
-						// 1. Update Card styling in Dashboard
 						const $card = $('[data-module-card="' + moduleId + '"]');
-						const $statusLabel = $('[data-status-label="' + moduleId + '"]');
-						const $actionArea = $('[data-action-area="' + moduleId + '"]');
-						const $inactiveNotice = $('[data-inactive-notice="' + moduleId + '"]');
+						const $label = $('[data-status-label="' + moduleId + '"]');
+						const $actionBtn = $('[data-action-area="' + moduleId + '"]');
+						const $navTab = $('[data-nav-module="' + moduleId + '"]');
 
 						if (data.state) {
 							$card.removeClass('is-inactive').addClass('is-active');
-							$statusLabel
-								.removeClass('is-inactive')
-								.addClass('is-active')
-								.text(waSuitAdminData.strings.active);
-							$actionArea.fadeIn(200);
-							$inactiveNotice.slideUp(200);
+							$label.text(waSuitAdminData.strings.active);
+							$actionBtn.fadeIn(150);
+							$navTab.fadeIn(150);
 						} else {
 							$card.removeClass('is-active').addClass('is-inactive');
-							$statusLabel
-								.removeClass('is-active')
-								.addClass('is-inactive')
-								.text(waSuitAdminData.strings.inactive);
-							$actionArea.fadeOut(200);
-							$inactiveNotice.slideDown(200);
+							$label.text(waSuitAdminData.strings.inactive);
+							$actionBtn.fadeOut(150);
+							$navTab.fadeOut(150);
 						}
 
-						// 2. Update Header Counter
-						$('.wa-suit-stat-active-count').text(data.active_count);
-
-						// 3. Update Left Sidebar dynamic Tab item
-						const $navItem = $('[data-nav-module="' + moduleId + '"]');
-						if (data.state) {
-							$navItem.slideDown(200);
-						} else {
-							$navItem.slideUp(200);
-						}
-
-						// 4. Update Empty State in Sidebar
+						// Update empty tab state
 						setTimeout(function () {
-							const visibleTabsCount = $('.wa-suit-nav__item--module:visible').length;
-							if (visibleTabsCount > 0) {
-								$('#wa-suit-nav-empty').hide();
+							const visibleCount = $('.wa-apple-nav__tab--module:visible').length;
+							if (visibleCount > 0) {
+								$('#wa-nav-empty').hide();
 							} else {
-								$('#wa-suit-nav-empty').fadeIn(200);
+								$('#wa-nav-empty').fadeIn(150);
 							}
-						}, 250);
+						}, 200);
 
-						// 5. Show Toast
-						showToast(data.message, 'success');
+						showToast(data.message);
 					} else {
-						// Revert checkbox state on error
 						$checkbox.prop('checked', !isChecked);
-						showToast(response.data && response.data.message ? response.data.message : waSuitAdminData.strings.error, 'error');
+						showToast(response.data && response.data.message ? response.data.message : 'Erro ao atualizar.');
 					}
 				},
 				error: function () {
 					$checkbox.prop('disabled', false);
 					$checkbox.prop('checked', !isChecked);
-					showToast(waSuitAdminData.strings.error, 'error');
+					showToast('Erro de conexão ao salvar.');
 				}
 			});
 		});
 
 		/**
-		 * Filter cards by Category
+		 * 2. 1-Click Copy Shortcode
 		 */
-		$('.wa-suit-filter-btn').on('click', function () {
+		$(document).on('click', '.wa-apple-btn-copy', function () {
 			const $btn = $(this);
-			const category = $btn.data('filter');
+			const textToCopy = $btn.data('copy');
+			const $textSpan = $btn.find('.copy-text');
+			const originalText = $textSpan.text();
 
-			$('.wa-suit-filter-btn').removeClass('is-active');
-			$btn.addClass('is-active');
+			if (!textToCopy) {
+				return;
+			}
 
-			filterModules();
+			// Clipboard API
+			if (navigator.clipboard && window.isSecureContext) {
+				navigator.clipboard.writeText(textToCopy).then(onCopied);
+			} else {
+				// Fallback
+				const $temp = $('<textarea>');
+				$('body').append($temp);
+				$temp.val(textToCopy).select();
+				document.execCommand('copy');
+				$temp.remove();
+				onCopied();
+			}
+
+			function onCopied() {
+				$btn.addClass('is-copied');
+				$textSpan.text(waSuitAdminData.strings.copied || 'Copiado!');
+				showToast('Shortcode copiado: ' + textToCopy);
+
+				setTimeout(function () {
+					$btn.removeClass('is-copied');
+					$textSpan.text(originalText);
+				}, 2000);
+			}
 		});
 
 		/**
-		 * Filter cards by Search Query
+		 * 3. Dynamic Links: Open / Close Add/Edit Drawer
 		 */
-		$('#wa-suit-search-input').on('input', function () {
-			filterModules();
+		const $drawer = $('#wa-link-form-drawer');
+		const $form = $('#wa-link-form');
+
+		$('#wa-btn-toggle-add-link').on('click', function () {
+			$('#wa-drawer-title').text('Criar Novo Link Dinâmico');
+			$form[0].reset();
+			$('#wa_link_id').prop('readonly', false);
+			$drawer.slideDown(200);
+			$('#wa_link_title').trigger('focus');
+		});
+
+		$('#wa-btn-close-drawer, #wa-btn-cancel-drawer').on('click', function () {
+			$drawer.slideUp(150);
+			$form[0].reset();
+		});
+
+		// Auto-generate slug from title while typing (if slug was empty)
+		$('#wa_link_title').on('input', function () {
+			const $idInput = $('#wa_link_id');
+			if (!$idInput.prop('readonly') && !$idInput.data('user-edited')) {
+				const val = $(this).val();
+				const slug = val
+					.toLowerCase()
+					.normalize('NFD')
+					.replace(/[\u0300-\u036f]/g, '')
+					.replace(/[^a-z0-9]+/g, '-')
+					.replace(/^-+|-+$/g, '');
+				$idInput.val(slug);
+			}
+		});
+
+		$('#wa_link_id').on('input', function () {
+			$(this).data('user-edited', true);
 		});
 
 		/**
-		 * Combined filter execution (category + search)
+		 * 4. Dynamic Links: Save (Add or Edit) via AJAX
 		 */
-		function filterModules() {
-			const activeCategory = $('.wa-suit-filter-btn.is-active').data('filter') || 'all';
-			const query = $.trim($('#wa-suit-search-input').val().toLowerCase());
-			let visibleCount = 0;
+		$form.on('submit', function (e) {
+			e.preventDefault();
 
-			$('.wa-suit-card--module').each(function () {
-				const $card = $(this);
-				const cardCat = $card.data('category');
-				const title = String($card.data('title') || '');
-				const desc = String($card.data('description') || '');
+			const $saveBtn = $('#wa-btn-save-link');
+			const title = $.trim($('#wa_link_title').val());
+			const id = $.trim($('#wa_link_id').val());
+			const url = $.trim($('#wa_link_url').val());
 
-				const matchesCat = (activeCategory === 'all' || cardCat === activeCategory);
-				const matchesQuery = (!query || title.indexOf(query) !== -1 || desc.indexOf(query) !== -1);
+			if (!title || !url) {
+				showToast('Preencha o Nome e a URL.');
+				return;
+			}
 
-				if (matchesCat && matchesQuery) {
-					$card.show();
-					visibleCount++;
-				} else {
-					$card.hide();
+			$saveBtn.prop('disabled', true).text(waSuitAdminData.strings.saving || 'Salvando...');
+
+			$.ajax({
+				url: waSuitAdminData.ajaxUrl,
+				type: 'POST',
+				dataType: 'json',
+				data: {
+					action: 'wa_suit_save_link',
+					nonce: waSuitAdminData.nonce,
+					title: title,
+					id: id,
+					url: url
+				},
+				success: function (res) {
+					$saveBtn.prop('disabled', false).html('<span class="dashicons dashicons-saved"></span> ' + (waSuitAdminData.strings.save || 'Salvar Link'));
+
+					if (res.success) {
+						const link = res.data.link;
+						const shortcode = res.data.shortcode;
+
+						// Remove empty state if present
+						$('#wa-empty-row').remove();
+
+						const existingRow = $('tr[data-link-id="' + link.id + '"]');
+
+						const rowHtml = `
+							<tr data-link-id="${link.id}">
+								<td>
+									<strong class="wa-apple-link-title">${escapeHtml(link.title)}</strong>
+									<span class="wa-apple-link-id">ID: <code>${escapeHtml(link.id)}</code></span>
+								</td>
+								<td>
+									<a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer" class="wa-apple-url-preview" title="${escapeHtml(link.url)}">
+										${escapeHtml(link.url)}
+									</a>
+								</td>
+								<td>
+									<div class="wa-apple-copy-box">
+										<code class="wa-apple-code-tag">${escapeHtml(shortcode)}</code>
+										<button type="button" class="wa-apple-btn-copy" data-copy="${escapeHtml(shortcode)}" title="Copiar shortcode">
+											<span class="dashicons dashicons-admin-page"></span>
+											<span class="copy-text">${waSuitAdminData.strings.copy || 'Copiar'}</span>
+										</button>
+									</div>
+								</td>
+								<td class="wa-apple-text-right">
+									<button type="button" class="wa-apple-icon-btn wa-btn-edit-link"
+										data-id="${escapeHtml(link.id)}"
+										data-title="${escapeHtml(link.title)}"
+										data-url="${escapeHtml(link.url)}"
+										title="Editar">
+										<span class="dashicons dashicons-edit"></span>
+									</button>
+									<button type="button" class="wa-apple-icon-btn wa-apple-icon-btn--danger wa-btn-delete-link"
+										data-id="${escapeHtml(link.id)}"
+										data-title="${escapeHtml(link.title)}"
+										title="Excluir">
+										<span class="dashicons dashicons-trash"></span>
+									</button>
+								</td>
+							</tr>
+						`;
+
+						if (existingRow.length > 0) {
+							existingRow.replaceWith(rowHtml);
+						} else {
+							$('#wa-links-tbody').prepend(rowHtml);
+						}
+
+						$drawer.slideUp(150);
+						$form[0].reset();
+						$('#wa_link_id').removeData('user-edited');
+						showToast(res.data.message || 'Link salvo com sucesso!');
+					} else {
+						showToast(res.data && res.data.message ? res.data.message : 'Erro ao salvar link.');
+					}
+				},
+				error: function () {
+					$saveBtn.prop('disabled', false).html('<span class="dashicons dashicons-saved"></span> ' + (waSuitAdminData.strings.save || 'Salvar Link'));
+					showToast('Erro de conexão ao salvar link.');
 				}
 			});
+		});
 
-			if (visibleCount === 0) {
-				$('#wa-suit-empty-search').show();
-			} else {
-				$('#wa-suit-empty-search').hide();
+		/**
+		 * 5. Dynamic Links: Edit Row
+		 */
+		$(document).on('click', '.wa-btn-edit-link', function () {
+			const $btn = $(this);
+			const id = $btn.data('id');
+			const title = $btn.data('title');
+			const url = $btn.data('url');
+
+			$('#wa-drawer-title').text('Editar Link: ' + title);
+			$('#wa_link_title').val(title);
+			$('#wa_link_id').val(id).prop('readonly', true);
+			$('#wa_link_url').val(url);
+
+			$drawer.slideDown(200);
+			$('#wa_link_url').trigger('focus');
+		});
+
+		/**
+		 * 6. Dynamic Links: Delete Row
+		 */
+		$(document).on('click', '.wa-btn-delete-link', function () {
+			const $btn = $(this);
+			const id = $btn.data('id');
+			const title = $btn.data('title') || id;
+
+			const confirmMsg = (waSuitAdminData.strings.confirmDel || 'Excluir?') + '\n"' + title + '"';
+			if (!confirm(confirmMsg)) {
+				return;
 			}
+
+			$.ajax({
+				url: waSuitAdminData.ajaxUrl,
+				type: 'POST',
+				dataType: 'json',
+				data: {
+					action: 'wa_suit_delete_link',
+					nonce: waSuitAdminData.nonce,
+					id: id
+				},
+				success: function (res) {
+					if (res.success) {
+						$('tr[data-link-id="' + id + '"]').fadeOut(200, function () {
+							$(this).remove();
+							if ($('#wa-links-tbody tr').length === 0) {
+								$('#wa-links-tbody').html(`
+									<tr class="wa-apple-empty-row" id="wa-empty-row">
+										<td colspan="4">
+											<div class="wa-apple-empty-state">
+												<div class="wa-apple-empty-icon">
+													<span class="dashicons dashicons-admin-links"></span>
+												</div>
+												<h4>Nenhum link cadastrado ainda</h4>
+												<p>Clique no botão acima "Novo Link" para criar seu primeiro link dinâmico.</p>
+											</div>
+										</td>
+									</tr>
+								`);
+							}
+						});
+						showToast(res.data.message || 'Link excluído.');
+					} else {
+						showToast(res.data && res.data.message ? res.data.message : 'Erro ao excluir link.');
+					}
+				},
+				error: function () {
+					showToast('Erro de conexão ao excluir.');
+				}
+			});
+		});
+
+		function escapeHtml(string) {
+			const entityMap = {
+				'&': '&amp;',
+				'<': '&lt;',
+				'>': '&gt;',
+				'"': '&quot;',
+				"'": '&#39;'
+			};
+			return String(string).replace(/[&<>"']/g, function (s) {
+				return entityMap[s];
+			});
 		}
 	});
 })(jQuery);
