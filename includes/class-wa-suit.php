@@ -11,6 +11,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once WA_SUIT_PATH . 'includes/class-wa-suit-security.php';
 require_once WA_SUIT_PATH . 'includes/class-wa-suit-settings.php';
+require_once WA_SUIT_PATH . 'includes/class-wa-suit-module-base.php';
+require_once WA_SUIT_PATH . 'includes/class-wa-suit-module-registry.php';
 require_once WA_SUIT_PATH . 'includes/class-wa-suit-module-loader.php';
 require_once WA_SUIT_PATH . 'includes/class-wa-suit-admin.php';
 
@@ -18,6 +20,28 @@ require_once WA_SUIT_PATH . 'includes/class-wa-suit-admin.php';
  * Coordinates plugin components.
  */
 class WA_Suit {
+
+	/**
+	 * Settings instance.
+	 *
+	 * @var WA_Suit_Settings
+	 */
+	private $settings;
+
+	/**
+	 * Module loader instance.
+	 *
+	 * @var WA_Suit_Module_Loader
+	 */
+	private $module_loader;
+
+	/**
+	 * Admin controller instance.
+	 *
+	 * @var WA_Suit_Admin|null
+	 */
+	private $admin = null;
+
 	/**
 	 * Registers plugin hooks and loads enabled components.
 	 *
@@ -26,13 +50,13 @@ class WA_Suit {
 	public function run() {
 		add_action( 'init', array( $this, 'load_textdomain' ) );
 
-		$settings      = new WA_Suit_Settings();
-		$module_loader = new WA_Suit_Module_Loader( $settings );
-		$module_loader->load();
+		$this->settings      = new WA_Suit_Settings();
+		$this->module_loader = new WA_Suit_Module_Loader( $this->settings );
+		$this->module_loader->load();
 
 		if ( is_admin() ) {
-			$admin = new WA_Suit_Admin( $settings, $module_loader );
-			$admin->register_hooks();
+			$this->admin = new WA_Suit_Admin( $this->settings, $this->module_loader );
+			$this->admin->register_hooks();
 		}
 	}
 

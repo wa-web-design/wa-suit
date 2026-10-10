@@ -10,27 +10,26 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Registers and renders plugin settings.
+ * Registers and manages plugin settings.
  */
 class WA_Suit_Settings {
+
 	/**
-	 * Settings option name.
+	 * Settings option name in wp_options.
 	 *
 	 * @var string
 	 */
 	const OPTION_NAME = 'wa_suit_settings';
 
 	/**
-	 * Registers the settings API integration.
-	 *
-	 * @return void
+	 * Constructor. Registers WordPress settings hooks.
 	 */
 	public function __construct() {
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 	}
 
 	/**
-	 * Registers the module settings.
+	 * Registers the setting with the WordPress Settings API.
 	 *
 	 * @return void
 	 */
@@ -41,14 +40,15 @@ class WA_Suit_Settings {
 			array(
 				'type'              => 'array',
 				'sanitize_callback' => array( $this, 'sanitize' ),
+				'default'           => array( 'enabled_modules' => array() ),
 			)
 		);
 	}
 
 	/**
-	 * Sanitizes submitted plugin settings.
+	 * Sanitizes submitted settings.
 	 *
-	 * @param mixed $input Submitted settings.
+	 * @param mixed $input Submitted settings array.
 	 * @return array
 	 */
 	public function sanitize( $input ) {
@@ -61,60 +61,81 @@ class WA_Suit_Settings {
 			: array();
 
 		return array(
-			'enabled_modules' => array_values( array_unique( $enabled_modules ) ),
+			'enabled_modules' => array_values( array_unique( array_filter( $enabled_modules ) ) ),
 		);
 	}
 
 	/**
-	 * Gets enabled modules, defaulting to all discovered modules.
+	 * Gets all currently enabled module slugs.
 	 *
-	 * @param string[] $available_modules Discovered module slugs.
 	 * @return string[]
 	 */
-	public function get_enabled_modules( $available_modules ) {
-		$options = get_option( self::OPTION_NAME, null );
+	public function get_enabled_modules() {
+		$options = get_option( self::OPTION_NAME, array() );
 
-		if ( ! is_array( $options ) || ! isset( $options['enabled_modules'] ) ) {
-			return $available_modules;
+		if ( ! is_array( $options ) || ! isset( $options['enabled_modules'] ) || ! is_array( $options['enabled_modules'] ) ) {
+			return array();
 		}
 
-		return array_values(
-			array_intersect(
-				$available_modules,
-				(array) $options['enabled_modules']
-			)
-		);
+		return array_values( array_unique( array_map( 'sanitize_key', $options['enabled_modules'] ) ) );
 	}
 
 	/**
-	 * Renders a checkbox for each available module.
+	 * Checks if a specific module is enabled.
 	 *
-	 * @param string[] $modules Available module slugs.
-	 * @return void
+	 * @param string $module_id Module slug.
+	 * @return bool
 	 */
-	public function render_module_fields( $modules ) {
-		$enabled_modules = $this->get_enabled_modules( $modules );
-		?>
-		<p>
-			<label for="wa-suit-enable-all">
-				<input type="checkbox" id="wa-suit-enable-all">
-				<?php echo esc_html__( 'Selecionar ou desmarcar todos', 'wa-suit' ); ?>
-			</label>
-		</p>
-		<div class="wa-suit__modules">
-			<?php foreach ( $modules as $module ) : ?>
-				<label class="wa-suit__module">
-					<input
-						type="checkbox"
-						name="<?php echo esc_attr( self::OPTION_NAME ); ?>[enabled_modules][]"
-						value="<?php echo esc_attr( $module ); ?>"
-						data-wa-suit-module
-						<?php checked( in_array( $module, $enabled_modules, true ) ); ?>
-					>
-					<span><?php echo esc_html( ucwords( str_replace( '-', ' ', $module ) ) ); ?></span>
-				</label>
-			<?php endforeach; ?>
-		</div>
-		<?php
+	public function is_module_enabled( $module_id ) {
+		$enabled = $this->get_enabled_modules();
+		return in_array( sanitize_key( $module_id ), $enabled, true );
+	}
+
+	/**
+	 * Enables a module.
+	 *
+	 * @param string $module_id Module slug.
+	 * @return bool
+	 */
+	public function enable_module( $module_id ) {
+		$module_id = sanitize_key( $module_id );
+		$enabled   = $this->get_enabled_modules();
+
+		if ( ! in_array( $module_id, $enabled, true ) ) {
+			$enabled[] = $module_id;
+			return update_option( self::OPTION_NAME, array( 'enabled_modules' => $enabled ) );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Disables a module.
+	 *
+	 * @param string $module_id Module slug.
+	 * @return bool
+	 */
+	public function disable_module( $module_id ) {
+		$module_id = sanitize_key( $module_id );
+		$enabled   = $this->get_enabled_modules();
+
+		$key = array_search( $module_id, $enabled, true );
+		if ( false !== $key ) {
+			unset( $enabled[ $key ] );
+			return update_option( self::OPTION_NAME, array( 'enabled_modules' => array_values( $enabled ) ) );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Sets the complete list of enabled modules.
+	 *
+	 * @param array $modules List of module slugs.
+	 * @return bool
+	 */
+	public function set_enabled_modules( array $modules ) {
+		$sanitized = array_values( array_unique( array_filter( array_map( 'sanitize_key', $modules ) ) ) );
+		return update_option( self::OPTION_NAME, array( 'enabled_modules' => $sanitized ) );
 	}
 }

@@ -1,6 +1,6 @@
 <?php
 /**
- * Discovers and loads enabled modules.
+ * Discovers and loads modules.
  *
  * @package WASuit
  */
@@ -10,94 +10,99 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Loads module entry points from the modules directory.
+ * Loads module files and bootstraps active features.
  */
 class WA_Suit_Module_Loader {
+
 	/**
-	 * Global settings component.
+	 * Settings instance.
 	 *
 	 * @var WA_Suit_Settings
 	 */
 	private $settings;
 
 	/**
-	 * Discovered module slugs.
+	 * Module registry instance.
 	 *
-	 * @var string[]
+	 * @var WA_Suit_Module_Registry
 	 */
-	private $available_modules = array();
+	private $registry;
 
 	/**
 	 * Sets up the module loader.
 	 *
-	 * @param WA_Suit_Settings $settings Global settings.
+	 * @param WA_Suit_Settings $settings Global settings instance.
 	 */
 	public function __construct( $settings ) {
 		$this->settings = $settings;
+		$this->registry = WA_Suit_Module_Registry::get_instance();
 	}
 
 	/**
-	 * Loads enabled module entry points.
+	 * Discovers module files, registers them, and boots active ones.
 	 *
 	 * @return void
 	 */
 	public function load() {
-		$this->available_modules = $this->discover_modules();
-		$enabled_modules          = $this->settings->get_enabled_modules( $this->available_modules );
+		$this->discover_and_include_modules();
 
-		foreach ( $enabled_modules as $module ) {
-			$module_file = WA_SUIT_PATH . 'modules/' . $module . '/' . $module . '.php';
+		$all_modules = $this->registry->get_all();
 
-			if ( is_readable( $module_file ) ) {
-				require_once $module_file;
+		foreach ( $all_modules as $module ) {
+			$module->set_settings_manager( $this->settings );
+
+			if ( $module->is_active() ) {
+				$module->init();
 			}
+		}
+	}
 
-			if ( is_admin() ) {
-				$admin_file = WA_SUIT_PATH . 'modules/' . $module . '/admin.php';
+	/**
+	 * Returns the registry instance.
+	 *
+	 * @return WA_Suit_Module_Registry
+	 */
+	public function get_registry() {
+		return $this->registry;
+	}
 
-				if ( is_readable( $admin_file ) ) {
-					require_once $admin_file;
+	/**
+	 * Scans the modules directory and includes entry point files.
+	 *
+	 * @return void
+	 */
+	private function discover_and_include_modules() {
+		$modules_dir = WA_SUIT_PATH . 'modules';
+
+		if ( ! is_dir( $modules_dir ) ) {
+			return;
+		}
+
+		// 1. Check for standalone PHP files directly in modules/*.php.
+		$direct_files = glob( $modules_dir . '/*.php' );
+		if ( is_array( $direct_files ) ) {
+			foreach ( $direct_files as $file ) {
+				if ( is_readable( $file ) ) {
+					require_once $file;
 				}
 			}
 		}
-	}
 
-	/**
-	 * Returns the discovered module slugs.
-	 *
-	 * @return string[]
-	 */
-	public function get_available_modules() {
-		if ( empty( $this->available_modules ) ) {
-			$this->available_modules = $this->discover_modules();
-		}
+		// 2. Check for subdirectories in modules/*/.
+		$directories = glob( $modules_dir . '/*', GLOB_ONLYDIR );
+		if ( is_array( $directories ) ) {
+			foreach ( $directories as $dir ) {
+				$slug = basename( $dir );
 
-		return $this->available_modules;
-	}
+				$slug_file  = $dir . '/' . $slug . '.php';
+				$index_file = $dir . '/index.php';
 
-	/**
-	 * Finds module directories that have a matching entry point.
-	 *
-	 * @return string[]
-	 */
-	private function discover_modules() {
-		$directories = glob( WA_SUIT_PATH . 'modules/*', GLOB_ONLYDIR );
-		$modules     = array();
-
-		if ( false === $directories ) {
-			return $modules;
-		}
-
-		foreach ( $directories as $directory ) {
-			$module = basename( $directory );
-
-			if ( is_readable( $directory . '/' . $module . '.php' ) ) {
-				$modules[] = sanitize_key( $module );
+				if ( is_readable( $slug_file ) ) {
+					require_once $slug_file;
+				} elseif ( is_readable( $index_file ) ) {
+					require_once $index_file;
+				}
 			}
 		}
-
-		sort( $modules );
-
-		return $modules;
 	}
 }
