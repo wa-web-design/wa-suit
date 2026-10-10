@@ -1,0 +1,15 @@
+.wa-suit__modules {
+	display: grid;
+	gap: 12px;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	max-width: 760px;
+}
+
+.wa-suit__module {
+	align-items: center;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	display: flex;
+	gap: 8px;
+	padding: 12px;
+}
