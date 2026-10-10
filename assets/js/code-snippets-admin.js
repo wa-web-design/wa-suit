@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	const template = document.querySelector('[data-wa-snippet-template]');
 	const addButton = document.querySelector('[data-wa-snippet-add]');
 
-	if (!list || !template || !addButton) {
+	if (!list || !template || !addButton || !window.waSuitCodeSnippets) {
 		return;
 	}
 
@@ -34,7 +34,10 @@ document.addEventListener('DOMContentLoaded', function () {
 		const title = snippet.querySelector('[data-wa-snippet-title]');
 		const summary = snippet.querySelector('[data-wa-snippet-summary]');
 		const pageSelect = snippet.querySelector('[data-wa-snippet-posts]');
-		const urlInput = snippet.querySelector('[data-wa-snippet-url] textarea');
+		const pageSearch = snippet.querySelector('[data-wa-post-search]');
+		const urlValues = Array.from(snippet.querySelectorAll('[data-wa-url-value]'))
+			.map(function (input) { return input.value.trim(); })
+			.filter(Boolean);
 		const devices = Array.from(snippet.querySelectorAll('[data-wa-snippet-device]'));
 		const allDevices = devices.find(function (device) {
 			return device.value === 'all';
@@ -52,8 +55,27 @@ document.addEventListener('DOMContentLoaded', function () {
 		}
 
 		if (target && page && url) {
-			page.hidden = target.value !== 'page';
+			page.hidden = !['page', 'post', 'product'].includes(target.value);
 			url.hidden = target.value !== 'url_contains';
+		}
+
+		if (target && pageSelect) {
+			const selectedTargetType = ['post', 'product'].includes(target.value) ? target.value : '';
+			const pageLabel = snippet.querySelector('[data-wa-snippet-post-label]');
+			if (pageLabel) {
+				pageLabel.textContent = target.value === 'post'
+					? waSuitCodeSnippets.strings.posts
+					: (target.value === 'product' ? waSuitCodeSnippets.strings.products : waSuitCodeSnippets.strings.content);
+			}
+
+			Array.from(pageSelect.options).forEach(function (option) {
+				const matchesTarget = !selectedTargetType || option.dataset.waPostType === selectedTargetType;
+				const matchesSearch = !pageSearch || option.textContent.toLocaleLowerCase().includes(pageSearch.value.trim().toLocaleLowerCase());
+				option.hidden = !matchesTarget || !matchesSearch;
+				if (!matchesTarget) {
+					option.selected = false;
+				}
+			});
 		}
 
 		if (phpNote) {
@@ -95,12 +117,12 @@ document.addEventListener('DOMContentLoaded', function () {
 			const targetLabel = target
 				? target.options[target.selectedIndex].text
 				: 'Todo o site';
-			const targetDetail = target && target.value === 'page'
+			const targetDetail = target && ['page', 'post', 'product'].includes(target.value)
 				? (pageSelect && pageSelect.selectedOptions.length
-					? pageSelect.selectedOptions.length + ' página(s)/artigo(s)'
+					? pageSelect.selectedOptions.length + ' item(ns) selecionado(s)'
 					: targetLabel)
 				: target && target.value === 'url_contains'
-					? targetLabel + ': ' + (urlInput && urlInput.value.trim() ? urlInput.value.trim().split(/\r?\n/).filter(Boolean).join(', ') : '...')
+					? targetLabel + ': ' + (urlValues.length ? urlValues.join(', ') : '...')
 					: targetLabel;
 			const selectedDevices = devices
 				.filter(function (device) { return device.checked; })
@@ -116,20 +138,50 @@ document.addEventListener('DOMContentLoaded', function () {
 		const location = snippet.querySelector('[data-wa-snippet-location]');
 		const titleInput = snippet.querySelector('[data-wa-snippet-title-input]');
 		const page = snippet.querySelector('[data-wa-snippet-posts]');
-		const url = snippet.querySelector('[data-wa-snippet-url] textarea');
+		const pageSearch = snippet.querySelector('[data-wa-post-search]');
 		const devices = Array.from(snippet.querySelectorAll('[data-wa-snippet-device]'));
 		const toggle = snippet.querySelector('[data-wa-snippet-enabled]');
 		const toggleLabel = snippet.querySelector('[data-wa-snippet-enabled-label]');
 		const codeEditor = snippet.querySelector('[data-wa-code-editor]');
 		const codeInput = codeEditor && codeEditor.querySelector('[data-wa-code-input]');
 		const removeButton = snippet.querySelector('[data-wa-snippet-remove]');
+		const urlFields = snippet.querySelector('[data-wa-url-fields]');
+		const addUrlButton = snippet.querySelector('[data-wa-url-add]');
 
-		[target, language, location, titleInput, page, url].forEach(function (control) {
+		[target, language, location, titleInput, page, pageSearch].forEach(function (control) {
 			if (control) {
 				control.addEventListener('input', function () { updateSnippet(snippet); });
 				control.addEventListener('change', function () { updateSnippet(snippet); });
 			}
 		});
+
+		if (urlFields) {
+			urlFields.addEventListener('input', function () {
+				updateSnippet(snippet);
+			});
+			urlFields.addEventListener('click', function (event) {
+				const eventTarget = event.target instanceof Element ? event.target : null;
+				const removeUrlButton = eventTarget && eventTarget.closest('[data-wa-url-remove]');
+				if (!removeUrlButton) {
+					return;
+				}
+
+				event.preventDefault();
+				removeUrlButton.closest('[data-wa-url-row]').remove();
+				if (!urlFields.querySelector('[data-wa-url-row]')) {
+					urlFields.appendChild(createUrlRow(urlFields.dataset.waUrlName));
+				}
+				updateSnippet(snippet);
+			});
+		}
+
+		if (addUrlButton && urlFields) {
+			addUrlButton.addEventListener('click', function () {
+				const row = createUrlRow(urlFields.dataset.waUrlName);
+				urlFields.appendChild(row);
+				row.querySelector('[data-wa-url-value]').focus();
+			});
+		}
 
 		devices.forEach(function (device) {
 			device.addEventListener('change', function () {
@@ -156,6 +208,19 @@ document.addEventListener('DOMContentLoaded', function () {
 			updateLineNumbers(codeEditor);
 			codeInput.addEventListener('input', function () { updateLineNumbers(codeEditor); });
 			codeInput.addEventListener('scroll', function () { updateLineNumbers(codeEditor); });
+
+			const codeShell = codeEditor.closest('[data-wa-code-shell]');
+			if (codeShell) {
+				codeShell.querySelectorAll('[data-wa-code-theme]').forEach(function (button) {
+					button.addEventListener('click', function () {
+						const theme = button.dataset.waCodeTheme === 'dark' ? 'dark' : 'light';
+						codeShell.dataset.theme = theme;
+						codeShell.querySelectorAll('[data-wa-code-theme]').forEach(function (themeButton) {
+							themeButton.setAttribute('aria-pressed', String(themeButton === button));
+						});
+					});
+				});
+			}
 		}
 
 		if (toggle) {
@@ -233,9 +298,62 @@ document.addEventListener('DOMContentLoaded', function () {
 		}
 	};
 
+	const createUrlRow = function (name) {
+		const row = document.createElement('div');
+		row.className = 'wa-code-snippet__url-row';
+		row.setAttribute('data-wa-url-row', '');
+
+		const input = document.createElement('input');
+		input.type = 'text';
+		input.name = name;
+		input.placeholder = waSuitCodeSnippets.strings.urlPlaceholder;
+		input.setAttribute('data-wa-url-value', '');
+		input.setAttribute('aria-label', waSuitCodeSnippets.strings.urlMatch);
+
+		const removeButton = document.createElement('button');
+		removeButton.type = 'button';
+		removeButton.className = 'wa-code-snippet__url-remove';
+		removeButton.setAttribute('data-wa-url-remove', '');
+		removeButton.setAttribute('aria-label', waSuitCodeSnippets.strings.removeUrl);
+
+		const icon = document.createElement('span');
+		icon.className = 'dashicons dashicons-no-alt';
+		icon.setAttribute('aria-hidden', 'true');
+		removeButton.appendChild(icon);
+		row.append(input, removeButton);
+
+		return row;
+	};
+
 	list.querySelectorAll('[data-wa-snippet]').forEach(function (snippet) {
 		bindSnippet(snippet, true);
 	});
+
+	const form = list.closest('form');
+	if (form) {
+		form.addEventListener('submit', function (event) {
+			const missingUrlRule = Array.from(list.querySelectorAll('[data-wa-snippet]')).find(function (snippet) {
+				const target = snippet.querySelector('[data-wa-snippet-target]');
+				if (!target || target.value !== 'url_contains') {
+					return false;
+				}
+
+				return !Array.from(snippet.querySelectorAll('[data-wa-url-value]')).some(function (input) {
+					return input.value.trim() !== '';
+				});
+			});
+
+			if (missingUrlRule) {
+				event.preventDefault();
+				missingUrlRule.open = true;
+				const firstUrlInput = missingUrlRule.querySelector('[data-wa-url-value]');
+				if (firstUrlInput) {
+					firstUrlInput.focus();
+				}
+				window.alert(waSuitCodeSnippets.strings.urlRequired);
+			}
+		});
+	}
 
 	addButton.addEventListener('click', function () {
 		const key = 'new-' + Date.now() + '-' + Math.random().toString(36).slice(2);

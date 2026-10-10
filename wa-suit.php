@@ -6,6 +6,7 @@
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author: Wa Web Design
+ * Author URI: https://wawebdesign.com.br/
  * Text Domain: wa-suit
  * Domain Path: /languages
  *

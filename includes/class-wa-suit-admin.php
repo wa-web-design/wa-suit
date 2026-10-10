@@ -48,6 +48,11 @@ class WA_Suit_Admin {
 		add_action( 'admin_menu', array( $this, 'add_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'wp_ajax_wa_suit_toggle_module', array( $this, 'ajax_toggle_module' ) );
+		add_action( 'admin_post_wa_suit_save_general_settings', array( $this, 'save_general_settings' ) );
+		add_action( 'admin_action_wa_suit_duplicate_post', array( $this, 'duplicate_post' ) );
+		add_action( 'admin_head', array( $this, 'hide_rank_math_notice' ) );
+		add_filter( 'post_row_actions', array( $this, 'add_duplicate_post_action' ), 10, 2 );
+		add_filter( 'page_row_actions', array( $this, 'add_duplicate_post_action' ), 10, 2 );
 	}
 
 	/**
@@ -171,10 +176,15 @@ class WA_Suit_Admin {
 			wp_send_json_error( array( 'message' => __( 'Módulo não encontrado.', 'wa-suit' ) ) );
 		}
 
+		$was_active = $module->is_active();
 		if ( $state ) {
 			$this->settings->enable_module( $module_id );
 		} else {
 			$this->settings->disable_module( $module_id );
+		}
+
+		if ( 'hide-login' === $module_id && $was_active !== $state && is_callable( array( $module, 'refresh_rewrite_rules' ) ) ) {
+			$module->refresh_rewrite_rules( $state );
 		}
 
 		$active_count = count( $this->module_loader->get_registry()->get_active() );
@@ -194,6 +204,142 @@ class WA_Suit_Admin {
 	}
 
 	/**
+	 * Saves the general WA Suit options.
+	 *
+	 * @return void
+	 */
+	public function save_general_settings() {
+		if ( ! WA_Suit_Security::can_manage_settings() ) {
+			wp_die( esc_html__( 'Você não tem permissão para alterar estas configurações.', 'wa-suit' ), '', array( 'response' => 403 ) );
+		}
+
+		check_admin_referer( 'wa_suit_save_general_settings' );
+		$input = isset( $_POST['settings'] ) && is_array( $_POST['settings'] )
+			? wp_unslash( $_POST['settings'] )
+			: array();
+		$this->settings->save_general_settings( $input );
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'          => 'wa-suit',
+					'tab'           => 'settings',
+					'settings-saved' => '1',
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	/**
+	 * Hides only the Rank Math license connection notice when requested.
+	 *
+	 * @return void
+	 */
+	public function hide_rank_math_notice() {
+		$settings = $this->settings->get_general_settings();
+		if ( empty( $settings['hide_rank_math_license_notice'] ) ) {
+			return;
+		}
+
+		echo '<style>.notice.rank-math-admin-license-notice{display:none!important}</style>';
+	}
+
+	/**
+	 * Adds a duplicate link to supported content rows.
+	 *
+	 * @param array   $actions Existing row actions.
+	 * @param WP_Post $post    Current post.
+	 * @return array
+	 */
+	public function add_duplicate_post_action( $actions, $post ) {
+		$settings = $this->settings->get_general_settings();
+		if ( empty( $settings['duplicate_enabled'] ) || ! in_array( $post->post_type, $settings['duplicate_post_types'], true ) || ! current_user_can( 'edit_post', $post->ID ) ) {
+			return $actions;
+		}
+
+		$url = add_query_arg(
+			array(
+				'action' => 'wa_suit_duplicate_post',
+				'post'   => $post->ID,
+			),
+			admin_url( 'admin.php' )
+		);
+		$url = wp_nonce_url( $url, 'wa_suit_duplicate_post_' . $post->ID );
+		$actions['wa_suit_duplicate'] = '<a href="' . esc_url( $url ) . '">' . esc_html__( 'Duplicar', 'wa-suit' ) . '</a>';
+
+		return $actions;
+	}
+
+	/**
+	 * Creates a draft copy of a post, page, or configured public post type.
+	 *
+	 * @return void
+	 */
+	public function duplicate_post() {
+		$post_id = isset( $_GET['post'] ) ? absint( $_GET['post'] ) : 0;
+		check_admin_referer( 'wa_suit_duplicate_post_' . $post_id );
+
+		$source   = get_post( $post_id );
+		$settings = $this->settings->get_general_settings();
+		if ( ! $source || empty( $settings['duplicate_enabled'] ) || ! in_array( $source->post_type, $settings['duplicate_post_types'], true ) || ! current_user_can( 'edit_post', $post_id ) ) {
+			wp_die( esc_html__( 'Este conteúdo não pode ser duplicado com suas permissões atuais.', 'wa-suit' ), '', array( 'response' => 403 ) );
+		}
+
+		$duplicate_id = wp_insert_post(
+			array(
+				'post_type'      => $source->post_type,
+				'post_status'    => 'draft',
+				'post_title'     => sprintf( __( '%s (cópia)', 'wa-suit' ), $source->post_title ),
+				'post_content'   => $source->post_content,
+				'post_excerpt'   => $source->post_excerpt,
+				'post_author'    => get_current_user_id(),
+				'post_parent'    => $source->post_parent,
+				'menu_order'     => $source->menu_order,
+				'comment_status' => $source->comment_status,
+				'ping_status'    => $source->ping_status,
+			),
+			true
+		);
+
+		if ( is_wp_error( $duplicate_id ) ) {
+			wp_die( esc_html( $duplicate_id->get_error_message() ), '', array( 'response' => 500 ) );
+		}
+
+		foreach ( get_object_taxonomies( $source->post_type ) as $taxonomy ) {
+			$term_ids = wp_get_object_terms( $post_id, $taxonomy, array( 'fields' => 'ids' ) );
+			if ( is_wp_error( $term_ids ) ) {
+				wp_delete_post( $duplicate_id, true );
+				wp_die( esc_html( $term_ids->get_error_message() ), '', array( 'response' => 500 ) );
+			}
+
+			$assigned = wp_set_object_terms( $duplicate_id, $term_ids, $taxonomy );
+			if ( is_wp_error( $assigned ) ) {
+				wp_delete_post( $duplicate_id, true );
+				wp_die( esc_html( $assigned->get_error_message() ), '', array( 'response' => 500 ) );
+			}
+		}
+
+		$meta = get_post_meta( $post_id );
+		foreach ( $meta as $meta_key => $values ) {
+			if ( in_array( $meta_key, array( '_edit_lock', '_edit_last' ), true ) ) {
+				continue;
+			}
+
+			foreach ( $values as $value ) {
+				if ( ! add_post_meta( $duplicate_id, $meta_key, maybe_unserialize( $value ) ) ) {
+					wp_delete_post( $duplicate_id, true );
+					wp_die( esc_html__( 'Não foi possível copiar os metadados do conteúdo.', 'wa-suit' ), '', array( 'response' => 500 ) );
+				}
+			}
+		}
+
+		wp_safe_redirect( admin_url( 'post.php?post=' . absint( $duplicate_id ) . '&action=edit' ) );
+		exit;
+	}
+
+	/**
 	 * Renders main administrative interface.
 	 *
 	 * @return void
@@ -210,26 +356,15 @@ class WA_Suit_Admin {
 		$current_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'dashboard';
 		?>
 		<div class="wrap wa-rm-wrap">
-			<!-- Subtle Top Gradient Detail Bar -->
-			<div class="wa-rm-gradient-bar"></div>
 
-			<!-- Rank Math Inspired Header Bar -->
+		<!-- Rank Math Inspired Header Bar -->
 			<div class="wa-rm-header">
 				<div class="wa-rm-header__left">
-					<div class="wa-rm-brand-logo">WA</div>
 					<div class="wa-rm-brand-info">
 						<h1 class="wa-rm-brand-title">
 							<?php echo esc_html__( 'WA Web Design', 'wa-suit' ); ?>
-							<span class="wa-rm-badge-version">SUITE</span>
 						</h1>
 						<span class="wa-rm-breadcrumb"><?php echo esc_html__( 'Dashboard / Módulos', 'wa-suit' ); ?></span>
-					</div>
-				</div>
-
-				<div class="wa-rm-header__right">
-					<div class="wa-rm-status-pill">
-						<span class="wa-rm-dot-live"></span>
-						<span><?php echo esc_html__( 'Sistema Ativo', 'wa-suit' ); ?></span>
 					</div>
 				</div>
 			</div>
@@ -241,6 +376,12 @@ class WA_Suit_Admin {
 						<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=dashboard' ) ); ?>">
 							<span class="dashicons dashicons-screenoptions"></span>
 							<?php echo esc_html__( 'Módulos', 'wa-suit' ); ?>
+						</a>
+					</li>
+					<li class="wa-rm-nav-tab <?php echo 'settings' === $current_tab ? 'is-active' : ''; ?>">
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=settings' ) ); ?>">
+							<span class="dashicons dashicons-admin-generic"></span>
+							<?php echo esc_html__( 'Configurações gerais', 'wa-suit' ); ?>
 						</a>
 					</li>
 
@@ -275,6 +416,8 @@ class WA_Suit_Admin {
 				<?php
 				if ( 'dashboard' === $current_tab ) {
 					$this->render_dashboard_tab( $all_modules );
+				} elseif ( 'settings' === $current_tab ) {
+					$this->render_general_settings_tab();
 				} elseif ( 'help' === $current_tab ) {
 					$this->render_help_tab();
 				} else {
@@ -409,6 +552,98 @@ class WA_Suit_Admin {
 			<div class="wa-rm-module-view-body">
 				<?php $module->render_tab(); ?>
 			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Renders plugin-wide settings.
+	 *
+	 * @return void
+	 */
+	private function render_general_settings_tab() {
+		$settings = $this->settings->get_general_settings();
+		$post_types = get_post_types(
+			array(
+				'public'  => true,
+				'show_ui' => true,
+			),
+			'objects'
+		);
+		?>
+		<div class="wa-general-settings">
+			<header class="wa-general-settings__header">
+				<div>
+					<p class="wa-general-settings__eyebrow"><?php echo esc_html__( 'PREFERÊNCIAS DO PLUGIN', 'wa-suit' ); ?></p>
+					<h2><?php echo esc_html__( 'Configurações gerais', 'wa-suit' ); ?></h2>
+					<p><?php echo esc_html__( 'Gerencie ferramentas e avisos do WA Suit em um só lugar.', 'wa-suit' ); ?></p>
+				</div>
+			</header>
+
+			<?php if ( isset( $_GET['settings-saved'] ) && is_string( $_GET['settings-saved'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['settings-saved'] ) ) ) : ?>
+				<div class="notice notice-success inline"><p><?php echo esc_html__( 'Configurações atualizadas.', 'wa-suit' ); ?></p></div>
+			<?php endif; ?>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="wa-general-settings__form">
+				<input type="hidden" name="action" value="wa_suit_save_general_settings">
+				<?php wp_nonce_field( 'wa_suit_save_general_settings' ); ?>
+
+				<section class="wa-general-settings__card">
+					<div class="wa-general-settings__card-heading">
+						<span class="dashicons dashicons-admin-page" aria-hidden="true"></span>
+						<div>
+							<h3><?php echo esc_html__( 'Duplicar conteúdo', 'wa-suit' ); ?></h3>
+							<p><?php echo esc_html__( 'Crie uma cópia em rascunho diretamente pela lista de conteúdos.', 'wa-suit' ); ?></p>
+						</div>
+					</div>
+
+					<label class="wa-general-settings__toggle">
+						<input type="checkbox" name="settings[duplicate_enabled]" value="1" <?php checked( $settings['duplicate_enabled'] ); ?>>
+						<span>
+							<strong><?php echo esc_html__( 'Ativar duplicação', 'wa-suit' ); ?></strong>
+							<small><?php echo esc_html__( 'Ativado por padrão. As cópias são criadas como rascunho.', 'wa-suit' ); ?></small>
+						</span>
+					</label>
+
+					<fieldset class="wa-general-settings__types">
+						<legend><?php echo esc_html__( 'Tipos de conteúdo disponíveis', 'wa-suit' ); ?></legend>
+						<div class="wa-general-settings__type-list">
+							<?php foreach ( $post_types as $post_type => $post_type_object ) :
+								if ( in_array( $post_type, array( 'attachment', 'revision', 'product' ), true ) || empty( $post_type_object->public ) || empty( $post_type_object->show_ui ) ) {
+									continue;
+								}
+								?>
+								<label>
+									<input type="checkbox" name="settings[duplicate_post_types][]" value="<?php echo esc_attr( $post_type ); ?>" <?php checked( in_array( $post_type, $settings['duplicate_post_types'], true ) ); ?>>
+									<span><?php echo esc_html( $post_type_object->labels->name ); ?></span>
+								</label>
+							<?php endforeach; ?>
+						</div>
+						<p class="description"><?php echo esc_html__( 'Produtos WooCommerce usam a opção nativa “Duplicar” da própria lista de produtos.', 'wa-suit' ); ?></p>
+					</fieldset>
+				</section>
+
+				<section class="wa-general-settings__card">
+					<div class="wa-general-settings__card-heading">
+						<span class="dashicons dashicons-hidden" aria-hidden="true"></span>
+						<div>
+							<h3><?php echo esc_html__( 'Avisos administrativos', 'wa-suit' ); ?></h3>
+							<p><?php echo esc_html__( 'Escolha quais avisos externos aparecem no painel.', 'wa-suit' ); ?></p>
+						</div>
+					</div>
+					<label class="wa-general-settings__toggle">
+						<input type="checkbox" name="settings[hide_rank_math_license_notice]" value="1" <?php checked( $settings['hide_rank_math_license_notice'] ); ?>>
+						<span>
+							<strong><?php echo esc_html__( 'Ocultar aviso de conexão do Rank Math PRO', 'wa-suit' ); ?></strong>
+							<small><?php echo esc_html__( 'Oculta somente o aviso de licença mostrado no painel. Não altera o Rank Math nem sua licença.', 'wa-suit' ); ?></small>
+						</span>
+					</label>
+				</section>
+
+				<div class="wa-general-settings__actions">
+					<button type="submit" class="wa-rm-btn wa-rm-btn--primary"><?php echo esc_html__( 'Salvar configurações', 'wa-suit' ); ?></button>
+				</div>
+			</form>
 		</div>
 		<?php
 	}

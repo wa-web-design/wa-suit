@@ -371,7 +371,7 @@ class WA_Suit_Module_Dynamic_Links extends WA_Suit_Module_Base {
 			<!-- Clean Step-by-Step Guide for Elementor -->
 			<div class="wa-apple-card-guide">
 				<div class="wa-apple-guide-badge">
-					<span class="wa-apple-gradient-dot"></span>
+					<span class="wa-apple-guide-dot"></span>
 					<?php echo esc_html__( 'Como usar no Elementor', 'wa-suit' ); ?>
 				</div>
 				<div class="wa-apple-steps-grid">
