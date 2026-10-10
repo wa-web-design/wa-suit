@@ -165,6 +165,7 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 					'content'        => class_exists('WooCommerce') && post_type_exists('product')
 						? __('Páginas, posts ou produtos', 'wa-suit')
 						: __('Páginas ou posts', 'wa-suit'),
+					'requiredFields' => __('Preencha o nome e o código antes de salvar.', 'wa-suit'),
 				),
 			)
 		);
@@ -300,7 +301,7 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 					<h2><?php echo esc_html__('Códigos Personalizados', 'wa-suit'); ?></h2>
 					<p><?php echo esc_html__('Crie códigos separados e escolha onde cada um será carregado no site.', 'wa-suit'); ?></p>
 				</div>
-				<button type="button" class="wa-rm-btn wa-rm-btn--primary" data-wa-snippet-add>
+				<button type="button" class="wa-admin-btn wa-admin-btn--primary" data-wa-snippet-add>
 					<?php echo esc_html__('Adicionar código', 'wa-suit'); ?>
 				</button>
 			</div>
@@ -330,7 +331,7 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 				</template>
 
 				<div class="wa-code-snippets__actions">
-					<button type="submit" class="wa-rm-btn wa-rm-btn--primary">
+					<button type="submit" class="wa-admin-btn wa-admin-btn--primary">
 						<?php echo esc_html__('Salvar códigos', 'wa-suit'); ?>
 					</button>
 				</div>
@@ -715,6 +716,12 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 	 */
 	private function render_snippet_fields($key, $snippet, $selectable_posts)
 	{
+		$targets = $this->get_available_targets();
+		$post_type_labels = array(
+			'post'    => __('Post', 'wa-suit'),
+			'page'    => __('Página', 'wa-suit'),
+			'product' => __('Produto', 'wa-suit'),
+		);
 		$snippet = wp_parse_args(
 			$snippet,
 			array(
@@ -746,7 +753,7 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 		}
 		$prefix  = 'snippets[' . $key . ']';
 	?>
-		<details class="wa-code-snippet" data-wa-snippet open>
+		<details class="wa-code-snippet" data-wa-snippet>
 			<summary class="wa-code-snippet__summary">
 				<strong data-wa-snippet-title><?php echo esc_html('' !== $snippet['title'] ? $snippet['title'] : __('Novo código', 'wa-suit')); ?></strong>
 				<span data-wa-snippet-summary><?php echo esc_html($this->snippet_summary($snippet)); ?></span>
@@ -759,13 +766,16 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 			</summary>
 			<div class="wa-code-snippet__content">
 				<div class="wa-code-snippet__top">
-					<button type="button" class="button-link-delete" data-wa-snippet-remove><?php echo esc_html__('Remover', 'wa-suit'); ?></button>
+					<button type="button" class="wa-code-snippet__remove" data-wa-snippet-remove aria-label="<?php echo esc_attr__('Remover código', 'wa-suit'); ?>" title="<?php echo esc_attr__('Remover código', 'wa-suit'); ?>">
+						<span class="dashicons dashicons-trash" aria-hidden="true"></span>
+						<span class="screen-reader-text"><?php echo esc_html__('Remover código', 'wa-suit'); ?></span>
+					</button>
 				</div>
 
 				<div class="wa-code-snippet__grid">
 					<label>
 						<span><?php echo esc_html__('Nome', 'wa-suit'); ?></span>
-						<input type="text" class="regular-text" name="<?php echo esc_attr($prefix); ?>[title]" value="<?php echo esc_attr($snippet['title']); ?>" data-wa-snippet-title-input placeholder="<?php echo esc_attr__('Ex.: Pixel da landing page', 'wa-suit'); ?>" required>
+						<input type="text" class="regular-text" name="<?php echo esc_attr($prefix); ?>[title]" value="<?php echo esc_attr($snippet['title']); ?>" data-wa-snippet-title-input placeholder="<?php echo esc_attr__('Ex.: Pixel da landing page', 'wa-suit'); ?>">
 					</label>
 					<label>
 						<span><?php echo esc_html__('Linguagem', 'wa-suit'); ?></span>
@@ -856,7 +866,7 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 							</span>
 							<span class="wa-code-editor" data-wa-code-editor>
 								<pre class="wa-code-editor__lines" aria-hidden="true" data-wa-code-lines>1</pre>
-								<textarea id="<?php echo esc_attr('wa-code-' . sanitize_key((string) $key)); ?>" name="<?php echo esc_attr($prefix); ?>[code]" rows="8" spellcheck="false" data-wa-code-input placeholder="<?php echo esc_attr__('Cole seu código aqui...', 'wa-suit'); ?>" required><?php echo esc_textarea($snippet['code']); ?></textarea>
+								<textarea id="<?php echo esc_attr('wa-code-' . sanitize_key((string) $key)); ?>" name="<?php echo esc_attr($prefix); ?>[code]" rows="8" spellcheck="false" data-wa-code-input placeholder="<?php echo esc_attr__('Cole seu código aqui...', 'wa-suit'); ?>"><?php echo esc_textarea($snippet['code']); ?></textarea>
 							</span>
 						</span>
 						<small data-wa-snippet-php-note hidden><?php echo esc_html__('PHP: informe apenas as instruções, sem as tags de abertura ou fechamento do PHP.', 'wa-suit'); ?></small>

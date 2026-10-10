@@ -27,14 +27,14 @@
 		/**
 		 * 1. Module Switch Toggle (AJAX)
 		 */
-		$(document).on('change', '.wa-rm-module-toggle, .wa-apple-module-toggle', function () {
+		$(document).on('change', '.wa-admin-module-toggle, .wa-apple-module-toggle', function () {
 			const $checkbox = $(this);
 			const moduleId = $checkbox.data('module-id');
 			const isChecked = $checkbox.is(':checked');
 			const state = isChecked ? 1 : 0;
 
 			// Sync toggles if multiple exist (card & header)
-			$('.wa-rm-module-toggle[data-module-id="' + moduleId + '"], .wa-apple-module-toggle[data-module-id="' + moduleId + '"]')
+			$('.wa-admin-module-toggle[data-module-id="' + moduleId + '"], .wa-apple-module-toggle[data-module-id="' + moduleId + '"]')
 				.not($checkbox)
 				.prop('checked', isChecked);
 

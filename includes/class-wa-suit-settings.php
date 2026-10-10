@@ -165,9 +165,8 @@ class WA_Suit_Settings {
 			: $default_types;
 
 		return array(
-			'duplicate_enabled'            => isset( $saved['duplicate_enabled'] ) ? (bool) $saved['duplicate_enabled'] : true,
-			'duplicate_post_types'         => array_values( array_unique( array_intersect( $saved_types, $allowed_types ) ) ),
-			'hide_rank_math_license_notice' => isset( $saved['hide_rank_math_license_notice'] ) ? (bool) $saved['hide_rank_math_license_notice'] : true,
+			'duplicate_enabled'    => isset( $saved['duplicate_enabled'] ) ? (bool) $saved['duplicate_enabled'] : true,
+			'duplicate_post_types' => array_values( array_unique( array_intersect( $saved_types, $allowed_types ) ) ),
 		);
 	}
 
@@ -194,9 +193,8 @@ class WA_Suit_Settings {
 		return update_option(
 			self::GENERAL_OPTION_NAME,
 			array(
-				'duplicate_enabled'             => ! empty( $input['duplicate_enabled'] ),
-				'duplicate_post_types'          => array_values( array_intersect( $selected, $public_types ) ),
-				'hide_rank_math_license_notice' => ! empty( $input['hide_rank_math_license_notice'] ),
+				'duplicate_enabled'    => ! empty( $input['duplicate_enabled'] ),
+				'duplicate_post_types' => array_values( array_intersect( $selected, $public_types ) ),
 			)
 		);
 	}

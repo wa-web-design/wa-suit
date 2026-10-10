@@ -17,9 +17,9 @@ O **WA Suit** é o plugin oficial da **WA Web Design** desenvolvido para agiliza
 * **Interface**: Visual minimalista em preto, branco e tons neutros, com tipografia do sistema e sem degradês.
 * **Ordem Superior no Painel**: Posicionado logo abaixo do "Painel" do WordPress (ordem mais alta).
 * **Arquitetura 100% Modular**: Cada função do plugin vive em seu próprio arquivo dentro da pasta `modules/`. O painel descobre arquivos automaticamente.
-* **Abas Laterais Dinâmicas**: Cada função possui uma chave liga/desliga no Painel Geral. Ao ligar a função, sua aba aparece imediatamente na lateral esquerda para configuração.
+* **Navegação simples**: Acesse Painel, Módulos e Configuração pelo menu do plugin. Abra as configurações de cada módulo pelo cartão correspondente.
 
-### Primeira Função: Links Dinâmicos1
+### Links Dinâmicos
 Centralize links em shortcodes para usar em botões do Elementor.
 1. Cadastre links (ex: WhatsApp, Checkout, Agendamento).
 2. O plugin gera o shortcode `[wa_link id="slug"]`.
@@ -32,16 +32,16 @@ Crie vários snippets em HTML, CSS, JavaScript, PHP ou Shortcode e escolha posi�
 Snippets mais específicos são impressos depois dos globais; entre regras de URL, a correspondência mais longa vem depois. Shortcodes são executados no body ou footer, não no head. PHP executa no servidor e não aceita filtro por dispositivo. HTML com filtro de dispositivo deve ser colocado no body ou footer.
 
 ### Hide Login
-Personalize o endereço da tela oficial de login do WordPress. Visitantes não autenticados que acessarem `wp-login.php` serão enviados à página inicial. O endereço funciona com links permanentes amigáveis e, quando eles estão desativados, usa uma rota por parâmetro. Ative o módulo no Painel Geral antes de usar a proteção.
+Personalize o endereço da tela oficial de login do WordPress. Visitantes não autenticados que acessarem `wp-login.php` serão enviados à página inicial. O endereço funciona com links permanentes amigáveis e, quando eles estão desativados, usa uma rota por parâmetro. Ative o módulo na página Módulos antes de usar a proteção.
 
-### Configurações gerais
-Ative a duplicação de páginas, posts e tipos de conteúdo públicos; o recurso vem ativado por padrão e cria cópias em rascunho. Produtos WooCommerce usam o comando de duplicação nativo do WooCommerce. Também é possível ocultar o aviso de conexão da licença Rank Math PRO sem alterar o plugin ou a licença.
+### Configuração
+Ative a duplicação de páginas, posts e tipos de conteúdo públicos; o recurso vem ativado por padrão e cria cópias em rascunho. Produtos WooCommerce usam o comando de duplicação nativo do WooCommerce.
 
 == Installation ==
 
 1. Envie a pasta `Plugin-WA-Suit` para o diretório `/wp-content/plugins/` da sua instalação WordPress.
 2. Ative o plugin no menu **Plugins** do WordPress.
-3. Acesse o menu **WA Web Design** (logo abaixo do Painel) para gerenciar as funções e links.
+3. Acesse **Painel > Módulos** para gerenciar as funções e links.
 
 == Como Criar Uma Nova Função ==
 

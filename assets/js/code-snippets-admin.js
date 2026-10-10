@@ -332,6 +332,24 @@ document.addEventListener('DOMContentLoaded', function () {
 	const form = list.closest('form');
 	if (form) {
 		form.addEventListener('submit', function (event) {
+			const incompleteSnippet = Array.from(list.querySelectorAll('[data-wa-snippet]')).find(function (snippet) {
+				const title = snippet.querySelector('[data-wa-snippet-title-input]');
+				const code = snippet.querySelector('[data-wa-code-input]');
+				return !title || !title.value.trim() || !code || !code.value.trim();
+			});
+
+			if (incompleteSnippet) {
+				event.preventDefault();
+				incompleteSnippet.open = true;
+				const missingField = Array.from(incompleteSnippet.querySelectorAll('[data-wa-snippet-title-input], [data-wa-code-input]'))
+					.find(function (field) { return !field.value.trim(); });
+				if (missingField) {
+					missingField.focus();
+				}
+				window.alert(waSuitCodeSnippets.strings.requiredFields);
+				return;
+			}
+
 			const missingUrlRule = Array.from(list.querySelectorAll('[data-wa-snippet]')).find(function (snippet) {
 				const target = snippet.querySelector('[data-wa-snippet-target]');
 				if (!target || target.value !== 'url_contains') {

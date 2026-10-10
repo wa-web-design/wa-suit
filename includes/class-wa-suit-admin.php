@@ -1,6 +1,6 @@
 <?php
 /**
- * Administration menu and dashboard - Rank Math inspired layout.
+ * Administration menu and dashboard.
  *
  * @package WASuit
  */
@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Handles the admin interface, tabs, and module switching in Rank Math style.
+ * Handles the plugin administration interface and module switching.
  */
 class WA_Suit_Admin {
 
@@ -50,7 +50,6 @@ class WA_Suit_Admin {
 		add_action( 'wp_ajax_wa_suit_toggle_module', array( $this, 'ajax_toggle_module' ) );
 		add_action( 'admin_post_wa_suit_save_general_settings', array( $this, 'save_general_settings' ) );
 		add_action( 'admin_action_wa_suit_duplicate_post', array( $this, 'duplicate_post' ) );
-		add_action( 'admin_head', array( $this, 'hide_rank_math_notice' ) );
 		add_filter( 'post_row_actions', array( $this, 'add_duplicate_post_action' ), 10, 2 );
 		add_filter( 'page_row_actions', array( $this, 'add_duplicate_post_action' ), 10, 2 );
 	}
@@ -63,8 +62,8 @@ class WA_Suit_Admin {
 	public function add_menu() {
 		// Position 3 places the menu immediately below Dashboard (2), above Posts (5).
 		add_menu_page(
-			__( 'WA Web Design', 'wa-suit' ),
-			__( 'WA Web Design', 'wa-suit' ),
+			__( 'Painel', 'wa-suit' ),
+			__( 'Painel', 'wa-suit' ),
 			'manage_options',
 			'wa-suit',
 			array( $this, 'render_page' ),
@@ -74,31 +73,20 @@ class WA_Suit_Admin {
 
 		add_submenu_page(
 			'wa-suit',
-			__( 'Visão Geral - WA Web Design', 'wa-suit' ),
-			__( 'Painel Geral', 'wa-suit' ),
+			__( 'Módulos', 'wa-suit' ),
+			__( 'Módulos', 'wa-suit' ),
 			'manage_options',
 			'wa-suit',
 			array( $this, 'render_page' )
 		);
 
-		// Dynamic submenu for active modules (Rank Math style)
-		$registry       = $this->module_loader->get_registry();
-		$active_modules = $registry->get_active();
-
-		foreach ( $active_modules as $module ) {
-			if ( ! $module->has_settings_tab() ) {
-				continue;
-			}
-
-			global $submenu;
-			if ( isset( $submenu['wa-suit'] ) ) {
-				$tab_url = admin_url( 'admin.php?page=wa-suit&tab=' . rawurlencode( $module->get_id() ) );
-				$submenu['wa-suit'][] = array(
-					esc_html( $module->get_title() ),
-					'manage_options',
-					$tab_url,
-				);
-			}
+		global $submenu;
+		if ( isset( $submenu['wa-suit'] ) ) {
+			$submenu['wa-suit'][] = array(
+				esc_html__( 'Configuração', 'wa-suit' ),
+				'manage_options',
+				admin_url( 'admin.php?page=wa-suit&tab=settings' ),
+			);
 		}
 	}
 
@@ -233,20 +221,6 @@ class WA_Suit_Admin {
 	}
 
 	/**
-	 * Hides only the Rank Math license connection notice when requested.
-	 *
-	 * @return void
-	 */
-	public function hide_rank_math_notice() {
-		$settings = $this->settings->get_general_settings();
-		if ( empty( $settings['hide_rank_math_license_notice'] ) ) {
-			return;
-		}
-
-		echo '<style>.notice.rank-math-admin-license-notice{display:none!important}</style>';
-	}
-
-	/**
 	 * Adds a duplicate link to supported content rows.
 	 *
 	 * @param array   $actions Existing row actions.
@@ -351,68 +325,43 @@ class WA_Suit_Admin {
 
 		$registry       = $this->module_loader->get_registry();
 		$all_modules    = $registry->get_all();
-		$active_modules = $registry->get_active();
 
 		$current_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'dashboard';
 		?>
-		<div class="wrap wa-rm-wrap">
+		<div class="wrap wa-admin-wrap">
 
-		<!-- Rank Math Inspired Header Bar -->
-			<div class="wa-rm-header">
-				<div class="wa-rm-header__left">
-					<div class="wa-rm-brand-info">
-						<h1 class="wa-rm-brand-title">
-							<?php echo esc_html__( 'WA Web Design', 'wa-suit' ); ?>
+		<!-- Plugin header -->
+			<div class="wa-admin-header">
+				<div class="wa-admin-header__left">
+					<div class="wa-admin-brand-info">
+						<h1 class="wa-admin-brand-title">
+							<?php echo esc_html__( 'Painel', 'wa-suit' ); ?>
 						</h1>
-						<span class="wa-rm-breadcrumb"><?php echo esc_html__( 'Dashboard / Módulos', 'wa-suit' ); ?></span>
+						<span class="wa-admin-breadcrumb"><?php echo esc_html__( 'Painel / Módulos', 'wa-suit' ); ?></span>
 					</div>
 				</div>
 			</div>
 
-			<!-- Rank Math Sub-Navigation Tab Bar -->
-			<div class="wa-rm-nav-bar">
-				<ul class="wa-rm-nav-tabs">
-					<li class="wa-rm-nav-tab <?php echo 'dashboard' === $current_tab ? 'is-active' : ''; ?>">
+			<!-- Main navigation -->
+			<div class="wa-admin-nav-bar">
+				<ul class="wa-admin-nav-tabs">
+					<li class="wa-admin-nav-tab <?php echo 'dashboard' === $current_tab ? 'is-active' : ''; ?>">
 						<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=dashboard' ) ); ?>">
 							<span class="dashicons dashicons-screenoptions"></span>
 							<?php echo esc_html__( 'Módulos', 'wa-suit' ); ?>
 						</a>
 					</li>
-					<li class="wa-rm-nav-tab <?php echo 'settings' === $current_tab ? 'is-active' : ''; ?>">
+					<li class="wa-admin-nav-tab <?php echo 'settings' === $current_tab ? 'is-active' : ''; ?>">
 						<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=settings' ) ); ?>">
 							<span class="dashicons dashicons-admin-generic"></span>
-							<?php echo esc_html__( 'Configurações gerais', 'wa-suit' ); ?>
-						</a>
-					</li>
-
-					<?php foreach ( $all_modules as $mod ) :
-						$is_active = $mod->is_active();
-						if ( ! $mod->has_settings_tab() ) {
-							continue;
-						}
-						$is_current = ( $current_tab === $mod->get_id() );
-						?>
-						<li class="wa-rm-nav-tab wa-rm-nav-tab--module <?php echo $is_current ? 'is-active' : ''; ?>"
-							data-nav-module="<?php echo esc_attr( $mod->get_id() ); ?>"
-							style="<?php echo $is_active ? '' : 'display: none;'; ?>">
-							<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=' . rawurlencode( $mod->get_id() ) ) ); ?>">
-								<span class="dashicons <?php echo esc_attr( $mod->get_icon() ); ?>"></span>
-								<?php echo esc_html( $mod->get_title() ); ?>
-							</a>
-						</li>
-					<?php endforeach; ?>
-
-					<li class="wa-rm-nav-tab <?php echo 'help' === $current_tab ? 'is-active' : ''; ?>">
-						<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=help' ) ); ?>">
-							<span class="dashicons dashicons-editor-help"></span>
-							<?php echo esc_html__( 'Ajuda', 'wa-suit' ); ?>
+							<?php echo esc_html__( 'Configuração', 'wa-suit' ); ?>
 						</a>
 					</li>
 				</ul>
 			</div>
 
 			<!-- Main Tab Content Area -->
-			<div class="wa-rm-content">
+			<div class="wa-admin-content">
 				<?php
 				if ( 'dashboard' === $current_tab ) {
 					$this->render_dashboard_tab( $all_modules );
@@ -426,10 +375,10 @@ class WA_Suit_Admin {
 						$this->render_module_tab( $active_module );
 					} else {
 						?>
-						<div class="wa-rm-card">
+						<div class="wa-admin-card">
 							<h3><?php echo esc_html__( 'Módulo não encontrado', 'wa-suit' ); ?></h3>
 							<p><?php echo esc_html__( 'O módulo selecionado não está disponível.', 'wa-suit' ); ?></p>
-							<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=dashboard' ) ); ?>" class="wa-rm-btn wa-rm-btn--primary">
+							<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=dashboard' ) ); ?>" class="wa-admin-btn wa-admin-btn--primary">
 								<?php echo esc_html__( 'Voltar aos Módulos', 'wa-suit' ); ?>
 							</a>
 						</div>
@@ -439,8 +388,8 @@ class WA_Suit_Admin {
 				?>
 			</div>
 
-			<!-- Rank Math Footer Note -->
-			<div class="wa-rm-footer">
+			<!-- Plugin footer -->
+			<div class="wa-admin-footer">
 				<p>
 					<?php echo esc_html__( 'Desenvolvido por', 'wa-suit' ); ?>
 					<strong>WA Web Design</strong> &bull; <?php echo esc_html__( 'Versão', 'wa-suit' ); ?> <?php echo esc_html( WA_SUIT_VERSION ); ?>
@@ -448,47 +397,47 @@ class WA_Suit_Admin {
 			</div>
 
 			<!-- Floating Toast Notification -->
-			<div id="wa-suit-toast" class="wa-rm-toast" aria-live="polite"></div>
+			<div id="wa-suit-toast" class="wa-admin-toast" aria-live="polite"></div>
 		</div>
 		<?php
 	}
 
 	/**
-	 * Renders Rank Math style Modules Dashboard.
+	 * Renders the modules dashboard.
 	 *
 	 * @param array $all_modules List of registered modules.
 	 * @return void
 	 */
 	private function render_dashboard_tab( $all_modules ) {
 		?>
-		<div class="wa-rm-dashboard-wrap">
-			<!-- Rank Math Grid of Modules -->
-			<div class="wa-rm-modules-grid">
+		<div class="wa-admin-dashboard-wrap">
+			<!-- Modules grid -->
+			<div class="wa-admin-modules-grid">
 				<?php foreach ( $all_modules as $mod ) :
 					$is_active = $mod->is_active();
 					$mod_id    = $mod->get_id();
 					?>
-					<div class="wa-rm-box wa-rm-module-box <?php echo $is_active ? 'is-active' : 'is-inactive'; ?>" data-module-card="<?php echo esc_attr( $mod_id ); ?>">
+					<div class="wa-admin-box wa-admin-module-box <?php echo $is_active ? 'is-active' : 'is-inactive'; ?>" data-module-card="<?php echo esc_attr( $mod_id ); ?>">
 						<!-- Card Header: Title + Badges -->
-						<header class="wa-rm-box-header">
-							<div class="wa-rm-box-title-wrap">
-								<span class="dashicons <?php echo esc_attr( $mod->get_icon() ); ?> wa-rm-module-icon"></span>
-								<h3 class="wa-rm-box-title"><?php echo esc_html( $mod->get_title() ); ?></h3>
+						<header class="wa-admin-box-header">
+							<div class="wa-admin-box-title-wrap">
+								<span class="dashicons <?php echo esc_attr( $mod->get_icon() ); ?> wa-admin-module-icon"></span>
+								<h3 class="wa-admin-box-title"><?php echo esc_html( $mod->get_title() ); ?></h3>
 							</div>
-							<span class="wa-rm-badge-tag"><?php echo esc_html( $mod->get_category() ); ?></span>
+							<span class="wa-admin-badge-tag"><?php echo esc_html( $mod->get_category() ); ?></span>
 						</header>
 
 						<!-- Card Content: Description -->
-						<div class="wa-rm-box-content">
+						<div class="wa-admin-box-content">
 							<p><?php echo esc_html( $mod->get_description() ); ?></p>
 						</div>
 
 						<!-- Card Footer: Settings Link on Left, Switch on Right -->
-						<footer class="wa-rm-box-footer">
-							<div class="wa-rm-box-status">
+						<footer class="wa-admin-box-footer">
+							<div class="wa-admin-box-status">
 								<?php if ( $mod->has_settings_tab() ) : ?>
 									<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=' . rawurlencode( $mod_id ) ) ); ?>"
-										class="wa-rm-settings-link"
+										class="wa-admin-settings-link"
 										data-action-area="<?php echo esc_attr( $mod_id ); ?>"
 										style="<?php echo $is_active ? '' : 'display: none;'; ?>">
 										<span class="dashicons dashicons-admin-generic"></span>
@@ -498,13 +447,13 @@ class WA_Suit_Admin {
 								<?php endif; ?>
 							</div>
 
-							<div class="wa-rm-box-actions">
-								<label class="wa-rm-switch" title="<?php esc_attr_e( 'Ativar ou desativar módulo', 'wa-suit' ); ?>">
+							<div class="wa-admin-box-actions">
+								<label class="wa-admin-switch" title="<?php esc_attr_e( 'Ativar ou desativar módulo', 'wa-suit' ); ?>">
 									<input type="checkbox"
-										class="wa-rm-module-toggle"
+										class="wa-admin-module-toggle"
 										data-module-id="<?php echo esc_attr( $mod_id ); ?>"
 										<?php checked( $is_active ); ?>>
-									<span class="wa-rm-slider"></span>
+									<span class="wa-admin-slider"></span>
 								</label>
 							</div>
 						</footer>
@@ -516,7 +465,7 @@ class WA_Suit_Admin {
 	}
 
 	/**
-	 * Renders module settings tab view (Rank Math Style).
+	 * Renders a module settings view.
 	 *
 	 * @param WA_Suit_Module_Base $module Module object.
 	 * @return void
@@ -524,32 +473,32 @@ class WA_Suit_Admin {
 	private function render_module_tab( $module ) {
 		$is_active = $module->is_active();
 		?>
-		<div class="wa-rm-module-view">
-			<div class="wa-rm-module-view-header">
-				<div class="wa-rm-module-view-nav">
-					<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=dashboard' ) ); ?>" class="wa-rm-back-link">
+		<div class="wa-admin-module-view">
+			<div class="wa-admin-module-view-header">
+				<div class="wa-admin-module-view-nav">
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=wa-suit&tab=dashboard' ) ); ?>" class="wa-admin-back-link">
 						<span class="dashicons dashicons-arrow-left-alt2"></span>
 						<?php echo esc_html__( 'Módulos', 'wa-suit' ); ?>
 					</a>
-					<span class="wa-rm-sep">/</span>
-					<span class="wa-rm-current"><?php echo esc_html( $module->get_title() ); ?></span>
+					<span class="wa-admin-sep">/</span>
+					<span class="wa-admin-current"><?php echo esc_html( $module->get_title() ); ?></span>
 				</div>
 
-				<div class="wa-rm-module-view-actions">
-					<label class="wa-rm-switch">
+				<div class="wa-admin-module-view-actions">
+					<label class="wa-admin-switch">
 						<input type="checkbox"
-							class="wa-rm-module-toggle"
+							class="wa-admin-module-toggle"
 							data-module-id="<?php echo esc_attr( $module->get_id() ); ?>"
 							<?php checked( $is_active ); ?>>
-						<span class="wa-rm-slider"></span>
+						<span class="wa-admin-slider"></span>
 					</label>
-					<span class="wa-rm-toggle-status" data-status-label="<?php echo esc_attr( $module->get_id() ); ?>">
+					<span class="wa-admin-toggle-status" data-status-label="<?php echo esc_attr( $module->get_id() ); ?>">
 						<?php echo $is_active ? esc_html__( 'Ativo', 'wa-suit' ) : esc_html__( 'Inativo', 'wa-suit' ); ?>
 					</span>
 				</div>
 			</div>
 
-			<div class="wa-rm-module-view-body">
+			<div class="wa-admin-module-view-body">
 				<?php $module->render_tab(); ?>
 			</div>
 		</div>
@@ -575,7 +524,7 @@ class WA_Suit_Admin {
 			<header class="wa-general-settings__header">
 				<div>
 					<p class="wa-general-settings__eyebrow"><?php echo esc_html__( 'PREFERÊNCIAS DO PLUGIN', 'wa-suit' ); ?></p>
-					<h2><?php echo esc_html__( 'Configurações gerais', 'wa-suit' ); ?></h2>
+					<h2><?php echo esc_html__( 'Configuração', 'wa-suit' ); ?></h2>
 					<p><?php echo esc_html__( 'Gerencie ferramentas e avisos do WA Suit em um só lugar.', 'wa-suit' ); ?></p>
 				</div>
 			</header>
@@ -623,25 +572,8 @@ class WA_Suit_Admin {
 					</fieldset>
 				</section>
 
-				<section class="wa-general-settings__card">
-					<div class="wa-general-settings__card-heading">
-						<span class="dashicons dashicons-hidden" aria-hidden="true"></span>
-						<div>
-							<h3><?php echo esc_html__( 'Avisos administrativos', 'wa-suit' ); ?></h3>
-							<p><?php echo esc_html__( 'Escolha quais avisos externos aparecem no painel.', 'wa-suit' ); ?></p>
-						</div>
-					</div>
-					<label class="wa-general-settings__toggle">
-						<input type="checkbox" name="settings[hide_rank_math_license_notice]" value="1" <?php checked( $settings['hide_rank_math_license_notice'] ); ?>>
-						<span>
-							<strong><?php echo esc_html__( 'Ocultar aviso de conexão do Rank Math PRO', 'wa-suit' ); ?></strong>
-							<small><?php echo esc_html__( 'Oculta somente o aviso de licença mostrado no painel. Não altera o Rank Math nem sua licença.', 'wa-suit' ); ?></small>
-						</span>
-					</label>
-				</section>
-
 				<div class="wa-general-settings__actions">
-					<button type="submit" class="wa-rm-btn wa-rm-btn--primary"><?php echo esc_html__( 'Salvar configurações', 'wa-suit' ); ?></button>
+					<button type="submit" class="wa-admin-btn wa-admin-btn--primary"><?php echo esc_html__( 'Salvar configurações', 'wa-suit' ); ?></button>
 				</div>
 			</form>
 		</div>
@@ -655,33 +587,33 @@ class WA_Suit_Admin {
 	 */
 	private function render_help_tab() {
 		?>
-		<div class="wa-rm-box wa-rm-help-box">
-			<header class="wa-rm-box-header">
-				<h3 class="wa-rm-box-title">
+		<div class="wa-admin-box wa-admin-help-box">
+			<header class="wa-admin-box-header">
+				<h3 class="wa-admin-box-title">
 					<span class="dashicons dashicons-welcome-learn-more"></span>
 					<?php echo esc_html__( 'Guia de Uso: Links Dinâmicos no Elementor', 'wa-suit' ); ?>
 				</h3>
 			</header>
 
-			<div class="wa-rm-box-content wa-rm-help-content">
+			<div class="wa-admin-box-content wa-admin-help-content">
 				<p>
 					<?php echo esc_html__( 'O módulo de Links Dinâmicos permite que você cadastre links estratégicos (como WhatsApp, Checkout, Agendamento) em um único lugar e utilize shortcodes em todos os botões do Elementor.', 'wa-suit' ); ?>
 				</p>
 
-				<div class="wa-rm-help-grid">
-					<div class="wa-rm-help-col">
+				<div class="wa-admin-help-grid">
+					<div class="wa-admin-help-col">
 						<h4>1. <?php echo esc_html__( 'Cadastrar o Link', 'wa-suit' ); ?></h4>
 						<p><?php echo esc_html__( 'Na aba "Links Dinâmicos", clique em "+ Novo Link", defina um nome (ex: WhatsApp Geral) e a URL completa.', 'wa-suit' ); ?></p>
 					</div>
-					<div class="wa-rm-help-col">
+					<div class="wa-admin-help-col">
 						<h4>2. <?php echo esc_html__( 'Copiar o Shortcode', 'wa-suit' ); ?></h4>
 						<p><?php echo esc_html__( 'Clique no botão "Copiar" ao lado do link para copiar [wa_link id="slug"].', 'wa-suit' ); ?></p>
 					</div>
-					<div class="wa-rm-help-col">
+					<div class="wa-admin-help-col">
 						<h4>3. <?php echo esc_html__( 'Usar no Elementor', 'wa-suit' ); ?></h4>
 						<p><?php echo esc_html__( 'No Elementor, cole o shortcode diretamente no campo de Link do botão ou selecione a Tag Dinâmica > Shortcode.', 'wa-suit' ); ?></p>
 					</div>
-					<div class="wa-rm-help-col">
+					<div class="wa-admin-help-col">
 						<h4>4. <?php echo esc_html__( 'Alteração Global Instantânea', 'wa-suit' ); ?></h4>
 						<p><?php echo esc_html__( 'Quando o número ou a URL mudar, edite uma única vez no painel. Todos os botões do site serão atualizados na hora!', 'wa-suit' ); ?></p>
 					</div>
