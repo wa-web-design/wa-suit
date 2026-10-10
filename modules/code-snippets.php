@@ -46,8 +46,11 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 	 */
 	private $targets = array(
 		'all'          => 'Site inteiro',
-		'page'         => 'Páginas, posts ou produtos',
-		'post'         => 'Posts',
+		'posts'        => 'Posts',
+		'pages'        => 'Páginas',
+		'category'     => 'Páginas de categoria',
+		'search'       => 'Páginas de pesquisa',
+		'tag_archive'  => 'Páginas de tag/arquivo',
 		'url_contains' => 'URL contém',
 	);
 
@@ -113,6 +116,7 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 		add_action('wp_head', array($this, 'render_head_snippets'), 99);
 		add_action('wp_body_open', array($this, 'render_body_snippets'), 1);
 		add_action('wp_footer', array($this, 'render_footer_snippets'), 99);
+		add_shortcode('wa_suit_snippet', array($this, 'render_snippet_shortcode'));
 	}
 
 	/**
@@ -274,25 +278,6 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 			$snippets = array();
 		}
 
-		$selectable_post_types = array('page', 'post');
-		if (class_exists('WooCommerce') && post_type_exists('product')) {
-			$selectable_post_types[] = 'product';
-		}
-
-		$selectable_posts = get_posts(
-			array(
-				'post_type'      => $selectable_post_types,
-				'post_status'    => 'publish',
-				'posts_per_page' => -1,
-				'orderby'        => 'title',
-				'order'          => 'ASC',
-			)
-		);
-		$post_type_labels = array(
-			'post'    => __('Post', 'wa-suit'),
-			'page'    => __('Página', 'wa-suit'),
-			'product' => __('Produto', 'wa-suit'),
-		);
 		$targets = $this->get_available_targets();
 ?>
 		<div class="wa-code-snippets">
@@ -320,14 +305,14 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 					<?php foreach ($snippets as $id => $snippet) : ?>
 						<?php
 						if (is_array($snippet) && is_scalar($id)) {
-							$this->render_snippet_fields(sanitize_key((string) $id), $snippet, $selectable_posts);
+							$this->render_snippet_fields(sanitize_key((string) $id), $snippet);
 						}
 						?>
 					<?php endforeach; ?>
 				</div>
 
 				<template data-wa-snippet-template>
-					<?php $this->render_snippet_fields('__SNIPPET_KEY__', array(), $selectable_posts); ?>
+					<?php $this->render_snippet_fields('__SNIPPET_KEY__', array()); ?>
 				</template>
 
 				<div class="wa-code-snippets__actions">
@@ -342,7 +327,7 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 			</div>
 
 			<div class="notice notice-info inline">
-				<p><?php echo esc_html__('Você pode selecionar várias páginas/artigos ou informar vários textos de URL (um por linha). Quando mais de um código corresponder, o site inteiro é carregado primeiro, depois as regras de URL (as correspondências mais longas por último) e, por fim, páginas e artigos específicos.', 'wa-suit'); ?></p>
+				<p><?php echo esc_html__('Marque um ou mais tipos de página para exibir o código. Códigos marcados como somente shortcode não são inseridos automaticamente; use o shortcode gerado no conteúdo desejado.', 'wa-suit'); ?></p>
 			</div>
 
 		</div>
@@ -400,12 +385,13 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 		$sequence         = 0;
 
 		foreach ($snippets as $id => $snippet) {
-			if (! is_array($snippet) || empty($snippet['enabled']) || ! isset($snippet['location'], $snippet['language'], $snippet['target']) || $location !== $snippet['location'] || ! isset($this->languages[$snippet['language']]) || ! $this->matches_target($snippet)) {
+			if (! is_array($snippet) || empty($snippet['enabled']) || ! empty($snippet['shortcode_only']) || ! isset($snippet['location'], $snippet['language']) || $location !== $snippet['location'] || ! isset($this->languages[$snippet['language']]) || ! $this->matches_target($snippet)) {
 				continue;
 			}
 
-			$target_rank = 'all' === $snippet['target'] ? 0 : ('url_contains' === $snippet['target'] ? 1 : 2);
-			$url_length  = 'url_contains' === $snippet['target'] ? $this->get_matching_url_specificity($snippet) : 0;
+			$display_on  = $this->get_snippet_display_targets($snippet);
+			$target_rank = in_array('all', $display_on, true) ? 0 : (in_array('url_contains', $display_on, true) ? 1 : 2);
+			$url_length  = in_array('url_contains', $display_on, true) ? $this->get_matching_url_specificity($snippet) : 0;
 			$devices     = $this->get_snippet_devices($snippet);
 			$device_rank = in_array('all', $devices, true) ? 0 : 1;
 
@@ -441,6 +427,34 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 		foreach ($matched_snippets as $entry) {
 			$this->output_snippet($entry['id'], $entry['snippet']);
 		}
+	}
+
+	/**
+	 * Renders a snippet only when its generated shortcode is used.
+	 *
+	 * @param array       $attributes Shortcode attributes.
+	 * @param string|null $content    Enclosed shortcode content.
+	 * @return string
+	 */
+	public function render_snippet_shortcode($attributes, $content = null)
+	{
+		unset($content);
+		$attributes = shortcode_atts(array('id' => ''), $attributes, 'wa_suit_snippet');
+		$id         = is_string($attributes['id']) ? sanitize_key($attributes['id']) : '';
+		$snippets   = $this->get_setting('snippets', array());
+
+		if ('' === $id || ! is_array($snippets) || ! isset($snippets[$id]) || ! is_array($snippets[$id])) {
+			return '';
+		}
+
+		$snippet = $snippets[$id];
+		if (empty($snippet['enabled']) || empty($snippet['shortcode_only']) || ! isset($snippet['language'], $this->languages[$snippet['language']])) {
+			return '';
+		}
+
+		ob_start();
+		$this->output_snippet($id, $snippet);
+		return (string) ob_get_clean();
 	}
 
 	/**
@@ -662,37 +676,36 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 	 */
 	private function matches_target($snippet)
 	{
-		if (! isset($snippet['target'])) {
-			return false;
-		}
-
-		if (in_array($snippet['target'], array('post', 'product'), true)) {
-			$post_ids = isset($snippet['post_ids']) && is_array($snippet['post_ids']) ? array_map('absint', $snippet['post_ids']) : array();
-			$post_id  = get_queried_object_id();
-			$post_type = 'product' === $snippet['target'] ? 'product' : 'post';
-
-			return $post_id && in_array($post_id, $post_ids, true) && is_singular($post_type);
-		}
-
-		if ('all' === $snippet['target']) {
+		$display_on = $this->get_snippet_display_targets($snippet);
+		if (in_array('all', $display_on, true)) {
 			return true;
 		}
 
-		if ('page' === $snippet['target']) {
-			$post_ids = isset($snippet['post_ids']) && is_array($snippet['post_ids'])
-				? array_map('absint', $snippet['post_ids'])
-				: (isset($snippet['page_id']) ? array(absint($snippet['page_id'])) : array());
-
-			foreach ($post_ids as $post_id) {
-				if (is_page($post_id) || is_single($post_id)) {
-					return true;
-				}
-			}
-
-			return false;
+		if (in_array('posts', $display_on, true) && is_singular('post')) {
+			return true;
 		}
 
-		if ('url_contains' === $snippet['target']) {
+		if (in_array('pages', $display_on, true) && is_page()) {
+			return true;
+		}
+
+		if (in_array('category', $display_on, true) && is_category()) {
+			return true;
+		}
+
+		if (in_array('search', $display_on, true) && is_search()) {
+			return true;
+		}
+
+		if (in_array('tag_archive', $display_on, true) && (is_tag() || (is_archive() && ! is_category()))) {
+			return true;
+		}
+
+		if (in_array('product', $display_on, true) && is_singular('product')) {
+			return true;
+		}
+
+		if (in_array('url_contains', $display_on, true)) {
 			$request_uri = isset($_SERVER['REQUEST_URI']) && is_string($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '';
 			$patterns    = $this->get_url_matches($snippet);
 
@@ -711,17 +724,11 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 	 *
 	 * @param string $key     Snippet identifier.
 	 * @param array  $snippet Snippet values.
-	 * @param array  $selectable_posts Published pages and posts.
 	 * @return void
 	 */
-	private function render_snippet_fields($key, $snippet, $selectable_posts)
+	private function render_snippet_fields($key, $snippet)
 	{
 		$targets = $this->get_available_targets();
-		$post_type_labels = array(
-			'post'    => __('Post', 'wa-suit'),
-			'page'    => __('Página', 'wa-suit'),
-			'product' => __('Produto', 'wa-suit'),
-		);
 		$snippet = wp_parse_args(
 			$snippet,
 			array(
@@ -730,21 +737,15 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 				'language'  => 'html',
 				'location'  => 'footer',
 				'target'    => 'all',
-				'page_id'   => '',
 				'url_match' => '',
-				'post_ids'  => array(),
+				'shortcode_only' => '0',
 				'url_matches' => array(),
 				'devices'   => array('all'),
 				'code'      => '',
 			)
 		);
-		if (empty($snippet['post_ids']) && ! empty($snippet['page_id'])) {
-			$snippet['post_ids'] = array(absint($snippet['page_id']));
-		}
+		$snippet['display_on'] = $this->get_snippet_display_targets($snippet);
 		$snippet['url_matches'] = $this->get_url_matches($snippet);
-		if (! is_array($snippet['post_ids'])) {
-			$snippet['post_ids'] = array();
-		}
 		if (! is_array($snippet['url_matches'])) {
 			$snippet['url_matches'] = array();
 		}
@@ -785,7 +786,7 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 							<?php endforeach; ?>
 						</select>
 					</label>
-					<label>
+					<label data-wa-snippet-location-wrap>
 						<span><?php echo esc_html__('Posição no site', 'wa-suit'); ?></span>
 						<select name="<?php echo esc_attr($prefix); ?>[location]" data-wa-snippet-location>
 							<?php foreach ($this->locations as $location => $label) : ?>
@@ -793,31 +794,19 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 							<?php endforeach; ?>
 						</select>
 					</label>
-					<label>
-						<span><?php echo esc_html__('Exibir em', 'wa-suit'); ?></span>
-						<select name="<?php echo esc_attr($prefix); ?>[target]" data-wa-snippet-target>
+					<fieldset class="wa-code-snippet__field wa-code-snippet__targets" data-wa-snippet-targets>
+						<legend class="wa-code-snippet__field-label"><?php echo esc_html__('Exibir em', 'wa-suit'); ?></legend>
+						<div class="wa-code-snippet__target-options">
 							<?php foreach ($targets as $target => $label) : ?>
-								<option value="<?php echo esc_attr($target); ?>" <?php selected($snippet['target'], $target); ?>><?php echo esc_html($label); ?></option>
+								<label class="wa-code-snippet__target-option">
+									<input type="checkbox" name="<?php echo esc_attr($prefix); ?>[display_on][]" value="<?php echo esc_attr($target); ?>" data-wa-display-target <?php checked(in_array($target, $snippet['display_on'], true)); ?>>
+									<span><?php echo esc_html($label); ?></span>
+								</label>
 							<?php endforeach; ?>
-						</select>
-					</label>
-					<div class="wa-code-snippet__field" data-wa-snippet-page <?php echo in_array($snippet['target'], array('page', 'post', 'product'), true) ? '' : 'hidden'; ?>>
-						<label class="wa-code-snippet__field-label" for="<?php echo esc_attr('wa-content-search-' . sanitize_key((string) $key)); ?>" data-wa-snippet-post-label><?php echo esc_html($targets['page']); ?></label>
-						<input id="<?php echo esc_attr('wa-content-search-' . sanitize_key((string) $key)); ?>" class="wa-code-snippet__search" type="search" data-wa-post-search placeholder="<?php echo esc_attr__('Buscar por título...', 'wa-suit'); ?>" aria-label="<?php echo esc_attr__('Buscar conteúdo pelo título', 'wa-suit'); ?>">
-						<label class="screen-reader-text" for="<?php echo esc_attr('wa-content-select-' . sanitize_key((string) $key)); ?>"><?php echo esc_html__('Conteúdos disponíveis', 'wa-suit'); ?></label>
-						<select id="<?php echo esc_attr('wa-content-select-' . sanitize_key((string) $key)); ?>" name="<?php echo esc_attr($prefix); ?>[post_ids][]" multiple size="7" data-wa-snippet-posts>
-							<?php foreach ($selectable_posts as $selectable_post) : ?>
-								<option value="<?php echo esc_attr($selectable_post->ID); ?>" data-wa-post-type="<?php echo esc_attr($selectable_post->post_type); ?>" <?php selected(in_array((int) $selectable_post->ID, array_map('absint', $snippet['post_ids']), true)); ?>>
-									<?php
-									$post_type_label  = isset($post_type_labels[$selectable_post->post_type]) ? $post_type_labels[$selectable_post->post_type] : $selectable_post->post_type;
-									?>
-									<?php echo esc_html('[' . $post_type_label . '] '); ?><?php echo esc_html($selectable_post->post_title); ?>
-								</option>
-							<?php endforeach; ?>
-						</select>
-						<small><?php echo esc_html__('Selecione um ou mais itens. As seleções permanecem marcadas mesmo enquanto você pesquisa.', 'wa-suit'); ?></small>
-					</div>
-					<div class="wa-code-snippet__field" data-wa-snippet-url <?php echo 'url_contains' === $snippet['target'] ? '' : 'hidden'; ?>>
+						</div>
+						<small><?php echo esc_html__('Selecione um ou mais tipos de página. “Site inteiro” não pode ser combinado com outras opções.', 'wa-suit'); ?></small>
+					</fieldset>
+					<div class="wa-code-snippet__field" data-wa-snippet-url <?php echo in_array('url_contains', $snippet['display_on'], true) ? '' : 'hidden'; ?>>
 						<span class="wa-code-snippet__field-label"><?php echo esc_html__('URL contém', 'wa-suit'); ?></span>
 						<div class="wa-code-snippet__url-fields" data-wa-url-fields data-wa-url-name="<?php echo esc_attr($prefix . '[url_matches][]'); ?>">
 							<?php if (empty($snippet['url_matches'])) : ?>
@@ -840,6 +829,18 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 						</button>
 						<small><?php echo esc_html__('O código será carregado quando a URL contiver qualquer um destes textos. Adicione uma condição para cada caminho ou palavra.', 'wa-suit'); ?></small>
 					</div>
+					<fieldset class="wa-code-snippet__field wa-code-snippet__shortcode">
+						<legend class="wa-code-snippet__field-label"><?php echo esc_html__('Modo de exibição', 'wa-suit'); ?></legend>
+						<label class="wa-code-snippet__target-option">
+							<input type="hidden" name="<?php echo esc_attr($prefix); ?>[shortcode_only]" value="0">
+							<input type="checkbox" name="<?php echo esc_attr($prefix); ?>[shortcode_only]" value="1" data-wa-shortcode-only <?php checked('1', (string) $snippet['shortcode_only']); ?>>
+							<span><?php echo esc_html__('Somente por shortcode (não inserir automaticamente no site)', 'wa-suit'); ?></span>
+						</label>
+						<small data-wa-generated-shortcode <?php echo '1' === (string) $snippet['shortcode_only'] ? '' : 'hidden'; ?>>
+							<?php echo esc_html__('Shortcode deste código:', 'wa-suit'); ?>
+							<code>[wa_suit_snippet id="<?php echo esc_attr($key); ?>"]</code>
+						</small>
+					</fieldset>
 					<fieldset class="wa-code-snippet__devices" data-wa-snippet-devices>
 						<input type="hidden" name="<?php echo esc_attr($prefix); ?>[devices_submitted]" value="1">
 						<legend><?php echo esc_html__('Executar em dispositivos', 'wa-suit'); ?></legend>
@@ -888,32 +889,21 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 	{
 		$language = isset($input['language']) && is_string($input['language']) ? sanitize_key($input['language']) : '';
 		$location = isset($input['location']) && is_string($input['location']) ? sanitize_key($input['location']) : '';
-		$target   = isset($input['target']) && is_string($input['target']) ? sanitize_key($input['target']) : '';
+		$legacy_target = isset($input['target']) && is_string($input['target']) ? sanitize_key($input['target']) : '';
 		$title    = isset($input['title']) && is_string($input['title']) ? sanitize_text_field($input['title']) : '';
 		$code     = isset($input['code']) && is_string($input['code']) ? $input['code'] : '';
-		$uses_content_ids = in_array($target, array('page', 'post', 'product'), true);
-		$raw_post_ids = $uses_content_ids && isset($input['post_ids']) && is_array($input['post_ids'])
-			? $input['post_ids']
-			: ($uses_content_ids && isset($input['page_id']) ? array($input['page_id']) : array());
-		$post_ids = array();
-		foreach ($raw_post_ids as $post_id) {
-			if (! is_scalar($post_id) || ! absint($post_id)) {
-				return null;
-			}
-			$post = get_post(absint($post_id));
-			$allowed_post_types = 'post' === $target ? array('post') : array('page', 'post');
-			if ('product' === $target && class_exists('WooCommerce') && post_type_exists('product')) {
-				$allowed_post_types = array('product');
-			} elseif ('page' === $target && class_exists('WooCommerce') && post_type_exists('product')) {
-				$allowed_post_types[] = 'product';
-			}
-			$target_post_types = $allowed_post_types;
-			if (! $post || ! in_array($post->post_type, $target_post_types, true) || 'publish' !== get_post_status($post)) {
-				return null;
-			}
-			$post_ids[] = absint($post_id);
+		$raw_display_on = isset($input['display_on']) && is_array($input['display_on'])
+			? $input['display_on']
+			: array();
+		$display_on = array_values(array_unique(array_filter(array_map(
+			function ($target) {
+				return is_string($target) ? sanitize_key($target) : '';
+			},
+			$raw_display_on
+		))));
+		if (! isset($input['display_on'])) {
+			$display_on = $this->legacy_target_to_display_targets($legacy_target);
 		}
-		$post_ids = array_values(array_unique($post_ids));
 		$raw_url_matches = isset($input['url_matches']) && is_array($input['url_matches'])
 			? $input['url_matches']
 			: (isset($input['url_matches']) && is_string($input['url_matches'])
@@ -948,7 +938,12 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 		}
 
 		$targets = $this->get_available_targets();
-		if (! isset($this->languages[$language], $this->locations[$location], $targets[$target]) || '' === trim($title) || '' === trim($code) || empty($devices)) {
+		$display_on = array_values(array_intersect($display_on, array_keys($targets)));
+		if (in_array('all', $display_on, true)) {
+			$display_on = array('all');
+		}
+		$shortcode_only = isset($input['shortcode_only']) && is_scalar($input['shortcode_only']) && '1' === (string) $input['shortcode_only'];
+		if (! isset($this->languages[$language], $this->locations[$location]) || '' === trim($title) || '' === trim($code) || empty($devices) || (! $shortcode_only && empty($display_on))) {
 			return null;
 		}
 
@@ -965,21 +960,15 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 			return null;
 		}
 
-		if ('html' === $language && array('all') !== $devices && 'head' === $location) {
+		if (! $shortcode_only && 'html' === $language && array('all') !== $devices && 'head' === $location) {
 			return null;
 		}
 
-		if ('shortcode' === $language && 'head' === $location) {
+		if (! $shortcode_only && 'shortcode' === $language && 'head' === $location) {
 			return null;
 		}
 
-		if ($uses_content_ids) {
-			if (empty($post_ids)) {
-				return null;
-			}
-		}
-
-		if ('url_contains' === $target && empty($url_matches)) {
+		if (! $shortcode_only && in_array('url_contains', $display_on, true) && empty($url_matches)) {
 			return null;
 		}
 
@@ -988,8 +977,8 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 			'enabled'     => isset($input['enabled']) && is_scalar($input['enabled']) && '1' === (string) $input['enabled'] ? '1' : '0',
 			'language'    => $language,
 			'location'    => $location,
-			'target'      => $target,
-			'post_ids'    => $post_ids,
+			'display_on'  => $display_on,
+			'shortcode_only' => $shortcode_only ? '1' : '0',
 			'url_matches' => $url_matches,
 			'devices'     => $devices,
 			'code'        => $code,
@@ -1004,27 +993,24 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 	 */
 	private function snippet_summary($snippet)
 	{
-		$target = isset($snippet['target']) ? $snippet['target'] : 'all';
 		$targets = $this->get_available_targets();
-		$label   = isset($targets[$target]) ? $targets[$target] : $targets['all'];
+		$display_on = $this->get_snippet_display_targets($snippet);
+		$labels = array_intersect_key($targets, array_flip($display_on));
+		$label = implode(', ', $labels);
+		if ('' === $label && empty($snippet['shortcode_only'])) {
+			$label = $targets['all'];
+		} elseif ('' === $label) {
+			$label = __('Inserção por shortcode', 'wa-suit');
+		}
 
-		if (in_array($target, array('page', 'post', 'product'), true)) {
-			$post_ids = isset($snippet['post_ids']) && is_array($snippet['post_ids'])
-				? array_map('absint', $snippet['post_ids'])
-				: (! empty($snippet['page_id']) ? array(absint($snippet['page_id'])) : array());
-			if (! empty($post_ids)) {
-				$label = sprintf(
-					/* translators: 1: selected content count, 2: content type. */
-					_n('%1$d item selecionado em %2$s', '%1$d itens selecionados em %2$s', count($post_ids), 'wa-suit'),
-					count($post_ids),
-					isset($targets[$target]) ? strtolower($targets[$target]) : __('conteúdo', 'wa-suit')
-				);
-			}
-		} elseif ('url_contains' === $target) {
+		if (in_array('url_contains', $display_on, true)) {
 			$patterns = $this->get_url_matches($snippet);
 			if (! empty($patterns)) {
 				$label .= ': ' . implode(', ', $patterns);
 			}
+		}
+		if (! empty($snippet['shortcode_only'])) {
+			$label = __('Somente shortcode', 'wa-suit') . ' · ' . $label;
 		}
 
 		$devices = $this->get_snippet_devices($snippet);
@@ -1046,11 +1032,49 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 		$targets = $this->targets;
 		if (class_exists('WooCommerce') && post_type_exists('product')) {
 			$targets['product'] = __('Produtos', 'wa-suit');
-		} else {
-			$targets['page'] = __('Páginas ou posts', 'wa-suit');
 		}
 
 		return $targets;
+	}
+
+	/**
+	 * Gets the display contexts, translating settings saved by older versions.
+	 *
+	 * @param array $snippet Snippet settings.
+	 * @return string[]
+	 */
+	private function get_snippet_display_targets($snippet)
+	{
+		if (isset($snippet['display_on']) && is_array($snippet['display_on'])) {
+			$targets = array_values(array_filter($snippet['display_on'], 'is_string'));
+		} else {
+			$legacy_target = isset($snippet['target']) && is_string($snippet['target'])
+				? sanitize_key($snippet['target'])
+				: 'all';
+			$targets = $this->legacy_target_to_display_targets($legacy_target);
+		}
+
+		$targets = array_values(array_intersect($targets, array_keys($this->get_available_targets())));
+		return in_array('all', $targets, true) ? array('all') : $targets;
+	}
+
+	/**
+	 * Converts a target value from the previous settings format.
+	 *
+	 * @param string $target Legacy target value.
+	 * @return string[]
+	 */
+	private function legacy_target_to_display_targets($target)
+	{
+		$map = array(
+			'all'          => array('all'),
+			'page'         => array('pages', 'posts'),
+			'post'         => array('posts'),
+			'product'      => array('product'),
+			'url_contains' => array('url_contains'),
+		);
+
+		return isset($map[$target]) ? $map[$target] : array('all');
 	}
 }
 

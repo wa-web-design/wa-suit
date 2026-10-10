@@ -22,31 +22,50 @@ document.addEventListener('DOMContentLoaded', function () {
 	};
 
 	const updateSnippet = function (snippet) {
-		const target = snippet.querySelector('[data-wa-snippet-target]');
-		const page = snippet.querySelector('[data-wa-snippet-page]');
+		const targets = Array.from(snippet.querySelectorAll('[data-wa-display-target]'));
 		const url = snippet.querySelector('[data-wa-snippet-url]');
 		const language = snippet.querySelector('[data-wa-snippet-language]');
 		const location = snippet.querySelector('[data-wa-snippet-location]');
+		const locationWrap = snippet.querySelector('[data-wa-snippet-location-wrap]');
+		const shortcodeOnly = snippet.querySelector('[data-wa-shortcode-only]');
+		const generatedShortcode = snippet.querySelector('[data-wa-generated-shortcode]');
 		const phpNote = snippet.querySelector('[data-wa-snippet-php-note]');
 		const shortcodeNote = snippet.querySelector('[data-wa-snippet-shortcode-note]');
 		const phpDeviceNote = snippet.querySelector('[data-wa-snippet-php-device-note]');
 		const titleInput = snippet.querySelector('[data-wa-snippet-title-input]');
 		const title = snippet.querySelector('[data-wa-snippet-title]');
 		const summary = snippet.querySelector('[data-wa-snippet-summary]');
-		const pageSelect = snippet.querySelector('[data-wa-snippet-posts]');
-		const pageSearch = snippet.querySelector('[data-wa-post-search]');
 		const urlValues = Array.from(snippet.querySelectorAll('[data-wa-url-value]'))
 			.map(function (input) { return input.value.trim(); })
 			.filter(Boolean);
+		let selectedTargets = targets.filter(function (target) { return target.checked; });
+		if (!selectedTargets.length && (!shortcodeOnly || !shortcodeOnly.checked)) {
+			const allTarget = targets.find(function (target) { return target.value === 'all'; });
+			if (allTarget) {
+				allTarget.checked = true;
+				selectedTargets = [allTarget];
+			}
+		}
 		const devices = Array.from(snippet.querySelectorAll('[data-wa-snippet-device]'));
 		const allDevices = devices.find(function (device) {
 			return device.value === 'all';
 		});
+		const targetsFieldset = snippet.querySelector('[data-wa-snippet-targets]');
+		const shortcodeMode = Boolean(shortcodeOnly && shortcodeOnly.checked);
 		const isPhp = language && language.value === 'php';
-		const isHtmlInHead = language && language.value === 'html' && location && location.value === 'head';
+		const isHtmlInHead = !shortcodeMode && language && language.value === 'html' && location && location.value === 'head';
 		const isShortcode = language && language.value === 'shortcode';
 		const headOption = location && location.querySelector('option[value="head"]');
 
+		if (targetsFieldset) {
+			targetsFieldset.hidden = shortcodeMode;
+		}
+		if (locationWrap) {
+			locationWrap.hidden = shortcodeMode;
+		}
+		if (generatedShortcode) {
+			generatedShortcode.hidden = !shortcodeMode;
+		}
 		if (headOption) {
 			headOption.disabled = Boolean(isShortcode);
 		}
@@ -54,28 +73,8 @@ document.addEventListener('DOMContentLoaded', function () {
 			location.value = 'body_open';
 		}
 
-		if (target && page && url) {
-			page.hidden = !['page', 'post', 'product'].includes(target.value);
-			url.hidden = target.value !== 'url_contains';
-		}
-
-		if (target && pageSelect) {
-			const selectedTargetType = ['post', 'product'].includes(target.value) ? target.value : '';
-			const pageLabel = snippet.querySelector('[data-wa-snippet-post-label]');
-			if (pageLabel) {
-				pageLabel.textContent = target.value === 'post'
-					? waSuitCodeSnippets.strings.posts
-					: (target.value === 'product' ? waSuitCodeSnippets.strings.products : waSuitCodeSnippets.strings.content);
-			}
-
-			Array.from(pageSelect.options).forEach(function (option) {
-				const matchesTarget = !selectedTargetType || option.dataset.waPostType === selectedTargetType;
-				const matchesSearch = !pageSearch || option.textContent.toLocaleLowerCase().includes(pageSearch.value.trim().toLocaleLowerCase());
-				option.hidden = !matchesTarget || !matchesSearch;
-				if (!matchesTarget) {
-					option.selected = false;
-				}
-			});
+		if (url) {
+			url.hidden = shortcodeMode || !selectedTargets.some(function (target) { return target.value === 'url_contains'; });
 		}
 
 		if (phpNote) {
@@ -114,16 +113,16 @@ document.addEventListener('DOMContentLoaded', function () {
 		}
 
 		if (summary) {
-			const targetLabel = target
-				? target.options[target.selectedIndex].text
-				: 'Todo o site';
-			const targetDetail = target && ['page', 'post', 'product'].includes(target.value)
-				? (pageSelect && pageSelect.selectedOptions.length
-					? pageSelect.selectedOptions.length + ' item(ns) selecionado(s)'
-					: targetLabel)
-				: target && target.value === 'url_contains'
-					? targetLabel + ': ' + (urlValues.length ? urlValues.join(', ') : '...')
-					: targetLabel;
+			const targetLabels = selectedTargets.map(function (target) {
+				return target.parentElement.textContent.trim();
+			});
+			let targetDetail = targetLabels.join(', ') || 'Selecione onde exibir';
+			if (selectedTargets.some(function (target) { return target.value === 'url_contains'; })) {
+				targetDetail += ': ' + (urlValues.length ? urlValues.join(', ') : '...');
+			}
+			if (shortcodeOnly && shortcodeOnly.checked) {
+				targetDetail = 'Somente shortcode';
+			}
 			const selectedDevices = devices
 				.filter(function (device) { return device.checked; })
 				.map(function (device) { return device.parentElement.textContent.trim(); });
@@ -133,12 +132,11 @@ document.addEventListener('DOMContentLoaded', function () {
 	};
 
 	const bindSnippet = function (snippet, collapse) {
-		const target = snippet.querySelector('[data-wa-snippet-target]');
+		const targets = Array.from(snippet.querySelectorAll('[data-wa-display-target]'));
 		const language = snippet.querySelector('[data-wa-snippet-language]');
 		const location = snippet.querySelector('[data-wa-snippet-location]');
 		const titleInput = snippet.querySelector('[data-wa-snippet-title-input]');
-		const page = snippet.querySelector('[data-wa-snippet-posts]');
-		const pageSearch = snippet.querySelector('[data-wa-post-search]');
+		const shortcodeOnly = snippet.querySelector('[data-wa-shortcode-only]');
 		const devices = Array.from(snippet.querySelectorAll('[data-wa-snippet-device]'));
 		const toggle = snippet.querySelector('[data-wa-snippet-enabled]');
 		const toggleLabel = snippet.querySelector('[data-wa-snippet-enabled-label]');
@@ -148,11 +146,29 @@ document.addEventListener('DOMContentLoaded', function () {
 		const urlFields = snippet.querySelector('[data-wa-url-fields]');
 		const addUrlButton = snippet.querySelector('[data-wa-url-add]');
 
-		[target, language, location, titleInput, page, pageSearch].forEach(function (control) {
+		[language, location, titleInput, shortcodeOnly].forEach(function (control) {
 			if (control) {
 				control.addEventListener('input', function () { updateSnippet(snippet); });
 				control.addEventListener('change', function () { updateSnippet(snippet); });
 			}
+		});
+		targets.forEach(function (target) {
+			target.addEventListener('change', function () {
+				const allTarget = targets.find(function (item) { return item.value === 'all'; });
+				if (target.value === 'all' && target.checked) {
+					targets.forEach(function (item) {
+						if (item !== target) {
+							item.checked = false;
+						}
+					});
+				} else if (target.checked && allTarget) {
+					allTarget.checked = false;
+				}
+				if (!targets.some(function (item) { return item.checked; }) && allTarget) {
+					allTarget.checked = true;
+				}
+				updateSnippet(snippet);
+			});
 		});
 
 		if (urlFields) {
@@ -351,8 +367,14 @@ document.addEventListener('DOMContentLoaded', function () {
 			}
 
 			const missingUrlRule = Array.from(list.querySelectorAll('[data-wa-snippet]')).find(function (snippet) {
-				const target = snippet.querySelector('[data-wa-snippet-target]');
-				if (!target || target.value !== 'url_contains') {
+				const shortcodeOnly = snippet.querySelector('[data-wa-shortcode-only]');
+				if (shortcodeOnly && shortcodeOnly.checked) {
+					return false;
+				}
+				const usesUrlRule = Array.from(snippet.querySelectorAll('[data-wa-display-target]')).some(function (target) {
+					return target.checked && target.value === 'url_contains';
+				});
+				if (!usesUrlRule) {
 					return false;
 				}
 
