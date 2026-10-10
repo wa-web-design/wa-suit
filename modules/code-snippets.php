@@ -327,7 +327,7 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 			</div>
 
 			<div class="notice notice-info inline">
-				<p><?php echo esc_html__('Marque um ou mais tipos de página para exibir o código. Códigos marcados como somente shortcode não são inseridos automaticamente; use o shortcode gerado no conteúdo desejado.', 'wa-suit'); ?></p>
+				<p><?php echo esc_html__('Quando mais de uma regra corresponder, a regra de URL mais específica tem prioridade; sem correspondência de URL, o tipo de página selecionado tem prioridade sobre “Site inteiro”. Regras igualmente específicas podem ser exibidas juntas. Códigos marcados como somente shortcode só aparecem onde o shortcode gerado for usado.', 'wa-suit'); ?></p>
 			</div>
 
 		</div>
@@ -389,9 +389,11 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 				continue;
 			}
 
-			$display_on  = $this->get_snippet_display_targets($snippet);
-			$target_rank = in_array('all', $display_on, true) ? 0 : (in_array('url_contains', $display_on, true) ? 1 : 2);
-			$url_length  = in_array('url_contains', $display_on, true) ? $this->get_matching_url_specificity($snippet) : 0;
+			$display_on = $this->get_snippet_display_targets($snippet);
+			$url_length = in_array('url_contains', $display_on, true) ? $this->get_matching_url_specificity($snippet) : 0;
+			$target_rank = $url_length > 0
+				? 2
+				: (in_array('all', $display_on, true) ? 0 : 1);
 			$devices     = $this->get_snippet_devices($snippet);
 			$device_rank = in_array('all', $devices, true) ? 0 : 1;
 
@@ -402,6 +404,24 @@ class WA_Suit_Module_Code_Snippets extends WA_Suit_Module_Base
 				'url_length'  => $url_length,
 				'device_rank' => $device_rank,
 				'sequence'    => $sequence++,
+			);
+		}
+
+		if (! empty($matched_snippets)) {
+			$most_specific_url = max(array_column($matched_snippets, 'url_length'));
+			$highest_target_rank = max(array_column($matched_snippets, 'target_rank'));
+
+			$matched_snippets = array_values(
+				array_filter(
+					$matched_snippets,
+					function ($entry) use ($most_specific_url, $highest_target_rank) {
+						if ($most_specific_url > 0) {
+							return $most_specific_url === $entry['url_length'];
+						}
+
+						return $highest_target_rank === $entry['target_rank'];
+					}
+				)
 			);
 		}
 
