@@ -241,7 +241,7 @@
 	font-size: 13px;
 	font-weight: 500;
 	text-decoration: none;
-	white-space: nowrap;
+	white-space: wrap;
 	border-radius: 5px;
 	transition: color .15s ease, background-color .15s ease;
 }
@@ -344,7 +344,7 @@
 	background: #fafafa;
 	border: 1px solid var(--wa-border);
 	border-radius: 20px;
-	white-space: nowrap;
+	white-space: wrap;
 }
 
 .wa-admin-dot-live {
@@ -387,7 +387,7 @@
 	color: #525252;
 	font-size: 13px;
 	text-decoration: none;
-	white-space: nowrap;
+	white-space: wrap;
 	border-bottom: 2px solid transparent;
 	transition: color .15s ease, background-color .15s ease;
 }
@@ -673,7 +673,7 @@
 
 .wa-admin-module-view-actions {
 	gap: 9px;
-	white-space: nowrap;
+	white-space: wrap;
 }
 
 .wa-admin-toggle-status {
@@ -1078,7 +1078,7 @@
 	overflow: hidden;
 	text-decoration: none;
 	text-overflow: ellipsis;
-	white-space: nowrap;
+	white-space: wrap;
 }
 
 .wa-apple-url-preview:hover {
@@ -1118,7 +1118,7 @@
 
 .wa-apple-text-right {
 	text-align: right !important;
-	white-space: nowrap;
+	white-space: wrap;
 }
 
 .wa-apple-icon-btn--danger {

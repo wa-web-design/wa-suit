@@ -4,7 +4,7 @@ Tags: administration, modules, links, elementor, shortcodes
 Requires at least: 6.0
 Requires PHP: 7.4
 Tested up to: 6.7
-Stable tag: 1.0.0
+Stable tag: 1.1
 License: MIT
 
 Plugin oficial da WA Web Design com interface em preto e branco, controle modular de funções e gerenciador centralizado de links dinâmicos para botões do Elementor.

@@ -1,5 +1,5 @@
-
 <?php
+
 /**
  * ============================================================
  * WA SUIT — HIDE LOGIN
@@ -27,13 +27,14 @@
  * @package WASuit
  */
 
-if ( ! defined( 'ABSPATH' ) ) {
+if (! defined('ABSPATH')) {
     exit;
 }
 
-if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
+if (! class_exists('WA_Suit_Module_Hide_Login')) {
 
-    class WA_Suit_Module_Hide_Login extends WA_Suit_Module_Base {
+    class WA_Suit_Module_Hide_Login extends WA_Suit_Module_Base
+    {
 
         const OPTION_SETTINGS = 'wa_suit_hide_login_settings';
         const QUERY_VAR       = 'wa_suit_hide_login';
@@ -49,86 +50,94 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
         /**
          * Registers settings saving even while the front-end feature is disabled.
          */
-        public function __construct() {
+        public function __construct()
+        {
             add_action(
                 'admin_post_wa_suit_save_hide_login',
-                array( $this, 'handle_save_settings' )
+                array($this, 'handle_save_settings')
             );
         }
 
         /**
          * Identificação do módulo.
          */
-        public function get_id() {
+        public function get_id()
+        {
             return 'hide-login';
         }
 
-        public function get_title() {
-            return __( 'Hide Login', 'wa-suit' );
+        public function get_title()
+        {
+            return __('Hide Login', 'wa-suit');
         }
 
-        public function get_description() {
+        public function get_description()
+        {
             return __(
                 'Personalize a URL de acesso ao WordPress e redirecione visitantes não autenticados que acessarem as rotas antigas.',
                 'wa-suit'
             );
         }
 
-        public function get_icon() {
+        public function get_icon()
+        {
             return 'dashicons-shield-alt';
         }
 
-        public function get_category() {
-            return __( 'Segurança', 'wa-suit' );
+        public function get_category()
+        {
+            return __('Segurança', 'wa-suit');
         }
 
-        public function get_order() {
+        public function get_order()
+        {
             return 90;
         }
 
         /**
          * Inicializa o módulo.
          */
-        public function init() {
+        public function init()
+        {
 
             // Registra a rota personalizada.
             add_action(
                 'init',
-                array( $this, 'register_rewrite_rules' ),
+                array($this, 'register_rewrite_rules'),
                 1
             );
 
             // Registra a variável interna da rota.
             add_filter(
                 'query_vars',
-                array( $this, 'register_query_vars' )
+                array($this, 'register_query_vars')
             );
 
             // Executa o login pela rota personalizada.
             add_action(
                 'template_redirect',
-                array( $this, 'handle_custom_login_route' ),
+                array($this, 'handle_custom_login_route'),
                 0
             );
 
             // Bloqueia o acesso direto à tela antiga.
             add_action(
                 'login_init',
-                array( $this, 'redirect_legacy_login' ),
+                array($this, 'redirect_legacy_login'),
                 1
             );
 
             // Mantém os links de login apontando para a rota nova.
             add_filter(
                 'login_url',
-                array( $this, 'filter_login_url' ),
+                array($this, 'filter_login_url'),
                 10,
                 3
             );
 
             add_filter(
                 'lostpassword_url',
-                array( $this, 'filter_lostpassword_url' ),
+                array($this, 'filter_lostpassword_url'),
                 10,
                 2
             );
@@ -137,24 +146,24 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
             // para wp-login.php, incluindo links de autenticação.
             add_filter(
                 'site_url',
-                array( $this, 'filter_site_url' ),
+                array($this, 'filter_site_url'),
                 10,
                 4
             );
 
             add_filter(
                 'network_site_url',
-                array( $this, 'filter_site_url' ),
+                array($this, 'filter_site_url'),
                 10,
                 3
             );
-
         }
 
         /**
          * Configurações padrão.
          */
-        public function get_default_settings() {
+        public function get_default_settings()
+        {
 
             return array(
                 'slug' => self::DEFAULT_SLUG,
@@ -164,14 +173,15 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
         /**
          * Retorna as configurações armazenadas.
          */
-        public function get_settings() {
+        public function get_settings()
+        {
 
             $saved = get_option(
                 self::OPTION_SETTINGS,
                 array()
             );
 
-            if ( ! is_array( $saved ) ) {
+            if (! is_array($saved)) {
                 $saved = array();
             }
 
@@ -184,18 +194,19 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
         /**
          * Retorna a URL personalizada de login.
          */
-        public function get_login_url() {
+        public function get_login_url()
+        {
 
             $settings = $this->get_settings();
             $slug     = $this->sanitize_login_slug(
                 $settings['slug']
             );
 
-            if ( '' === (string) get_option( 'permalink_structure' ) ) {
-                return add_query_arg( self::QUERY_VAR, '1', home_url( '/' ) );
+            if ('' === (string) get_option('permalink_structure')) {
+                return add_query_arg(self::QUERY_VAR, '1', home_url('/'));
             }
 
-            return home_url( '/' . $slug . '/' );
+            return home_url('/' . $slug . '/');
         }
 
         /**
@@ -207,19 +218,20 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
          * @param string $slug Identificador informado.
          * @return string
          */
-        private function sanitize_login_slug( $slug ) {
+        private function sanitize_login_slug($slug)
+        {
 
             $slug = strtolower(
-                sanitize_title( (string) $slug )
+                sanitize_title((string) $slug)
             );
 
-            $slug = trim( $slug, '/' );
+            $slug = trim($slug, '/');
 
             if (
                 '' === $slug ||
-                strlen( $slug ) < 3 ||
-                strlen( $slug ) > 80 ||
-                ! preg_match( '/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $slug )
+                strlen($slug) < 3 ||
+                strlen($slug) > 80 ||
+                ! preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $slug)
             ) {
                 return self::DEFAULT_SLUG;
             }
@@ -239,7 +251,7 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
                 'admin',
             );
 
-            if ( in_array( $slug, $reserved, true ) ) {
+            if (in_array($slug, $reserved, true)) {
                 return self::DEFAULT_SLUG;
             }
 
@@ -252,19 +264,20 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
          * A regra utiliza o slug atual, sem precisar de uma
          * rota fixa no código.
          */
-        public function register_rewrite_rules() {
+        public function register_rewrite_rules()
+        {
 
             $settings = $this->get_settings();
             $slug     = $this->sanitize_login_slug(
                 $settings['slug']
             );
 
-            if ( '' === (string) get_option( 'permalink_structure' ) ) {
+            if ('' === (string) get_option('permalink_structure')) {
                 return;
             }
 
             add_rewrite_rule(
-                '^' . preg_quote( $slug, '/' ) . '/?$',
+                '^' . preg_quote($slug, '/') . '/?$',
                 'index.php?' . self::QUERY_VAR . '=1',
                 'top'
             );
@@ -277,29 +290,30 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
          * @param string $previous_slug Previous saved route, if it changed.
          * @return void
          */
-        public function refresh_rewrite_rules( $enabled, $previous_slug = '' ) {
-            if ( '' === (string) get_option( 'permalink_structure' ) ) {
+        public function refresh_rewrite_rules($enabled, $previous_slug = '')
+        {
+            if ('' === (string) get_option('permalink_structure')) {
                 return;
             }
 
             global $wp_rewrite;
 
             $settings = $this->get_settings();
-            $slugs    = array( $settings['slug'], $previous_slug );
-            foreach ( $slugs as $slug ) {
-                if ( '' === (string) $slug ) {
+            $slugs    = array($settings['slug'], $previous_slug);
+            foreach ($slugs as $slug) {
+                if ('' === (string) $slug) {
                     continue;
                 }
 
-                $rule = '^' . preg_quote( $this->sanitize_login_slug( $slug ), '/' ) . '/?$';
-                unset( $wp_rewrite->extra_rules_top[ $rule ], $wp_rewrite->extra_rules[ $rule ] );
+                $rule = '^' . preg_quote($this->sanitize_login_slug($slug), '/') . '/?$';
+                unset($wp_rewrite->extra_rules_top[$rule], $wp_rewrite->extra_rules[$rule]);
             }
 
-            if ( $enabled ) {
+            if ($enabled) {
                 $this->register_rewrite_rules();
             }
 
-            flush_rewrite_rules( false );
+            flush_rewrite_rules(false);
         }
 
         /**
@@ -308,7 +322,8 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
          * @param array $vars Variáveis registradas.
          * @return array
          */
-        public function register_query_vars( $vars ) {
+        public function register_query_vars($vars)
+        {
 
             $vars[] = self::QUERY_VAR;
 
@@ -321,13 +336,14 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
          * O WordPress continua responsável pela autenticação,
          * cookies, nonce e validação de senha.
          */
-        public function handle_custom_login_route() {
+        public function handle_custom_login_route()
+        {
 
-            if ( $this->login_route_processed ) {
+            if ($this->login_route_processed) {
                 return;
             }
 
-            if ( '1' !== (string) get_query_var( self::QUERY_VAR ) ) {
+            if ('1' !== (string) get_query_var(self::QUERY_VAR)) {
                 return;
             }
 
@@ -353,27 +369,28 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
          * Usuários autenticados mantêm acesso à tela oficial,
          * incluindo operações legítimas de logout.
          */
-        public function redirect_legacy_login() {
+        public function redirect_legacy_login()
+        {
 
             if (
-                '1' === (string) get_query_var( self::QUERY_VAR )
+                '1' === (string) get_query_var(self::QUERY_VAR)
             ) {
                 return;
             }
 
-            if ( is_user_logged_in() ) {
+            if (is_user_logged_in()) {
                 return;
             }
 
             // Não interfere em requisições AJAX ou cron.
-            if ( wp_doing_ajax() || wp_doing_cron() ) {
+            if (wp_doing_ajax() || wp_doing_cron()) {
                 return;
             }
 
             // Esta ação ocorre no processamento de wp-login.php.
             // Redireciona visitantes não autenticados para a home.
             wp_safe_redirect(
-                home_url( '/' ),
+                home_url('/'),
                 302,
                 'WA Suit Hide Login'
             );
@@ -397,7 +414,7 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
 
             $url = $this->get_login_url();
 
-            if ( ! empty( $redirect ) ) {
+            if (! empty($redirect)) {
                 $url = add_query_arg(
                     'redirect_to',
                     $redirect,
@@ -405,7 +422,7 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
                 );
             }
 
-            if ( $force_reauth ) {
+            if ($force_reauth) {
                 $url = add_query_arg(
                     'reauth',
                     '1',
@@ -434,7 +451,7 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
                 $this->get_login_url()
             );
 
-            if ( ! empty( $redirect ) ) {
+            if (! empty($redirect)) {
                 $url = add_query_arg(
                     'redirect_to',
                     $redirect,
@@ -464,7 +481,7 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
             $blog_id = null
         ) {
 
-            if ( ! is_string( $path ) || '' === $path ) {
+            if (! is_string($path) || '' === $path) {
                 return $url;
             }
 
@@ -473,11 +490,11 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
                 PHP_URL_PATH
             );
 
-            if ( ! $path_only ) {
+            if (! $path_only) {
                 $path_only = $path;
             }
 
-            if ( 'wp-login.php' !== basename( $path_only ) ) {
+            if ('wp-login.php' !== basename($path_only)) {
                 return $url;
             }
 
@@ -488,8 +505,8 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
 
             $new_url = $this->get_login_url();
 
-            if ( ! empty( $query_string ) ) {
-                $new_url = add_query_arg( wp_parse_args( $query_string ), $new_url );
+            if (! empty($query_string)) {
+                $new_url = add_query_arg(wp_parse_args($query_string), $new_url);
             }
 
             return $new_url;
@@ -502,10 +519,11 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
          * disponível e compatível; caso contrário, exige
          * a capacidade administrativa padrão do WordPress.
          */
-        private function can_manage_settings() {
+        private function can_manage_settings()
+        {
 
             if (
-                class_exists( 'WA_Suit_Security' ) &&
+                class_exists('WA_Suit_Security') &&
                 is_callable(
                     array(
                         'WA_Suit_Security',
@@ -516,22 +534,23 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
                 return (bool) WA_Suit_Security::can_manage_settings();
             }
 
-            return current_user_can( 'manage_options' );
+            return current_user_can('manage_options');
         }
 
         /**
          * Processa o salvamento das configurações.
          */
-        public function handle_save_settings() {
+        public function handle_save_settings()
+        {
 
-            if ( ! $this->can_manage_settings() ) {
+            if (! $this->can_manage_settings()) {
                 wp_die(
                     esc_html__(
                         'Você não tem permissão para alterar estas configurações.',
                         'wa-suit'
                     ),
                     '',
-                    array( 'response' => 403 )
+                    array('response' => 403)
                 );
             }
 
@@ -540,25 +559,25 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
                 'wa_suit_hide_login_nonce'
             );
 
-            $raw_slug = isset( $_POST['slug'] )
+            $raw_slug = isset($_POST['slug'])
                 ? sanitize_text_field(
-                    wp_unslash( $_POST['slug'] )
+                    wp_unslash($_POST['slug'])
                 )
                 : '';
 
-            $slug = $this->sanitize_login_slug( $raw_slug );
+            $slug = $this->sanitize_login_slug($raw_slug);
 
             // Não permite salvar silenciosamente um valor inválido.
             if (
                 '' === $raw_slug ||
                 $slug !== strtolower(
                     trim(
-                        sanitize_title( $raw_slug ),
+                        sanitize_title($raw_slug),
                         '/'
                     )
                 )
             ) {
-                $this->redirect_settings_page( 'invalid_slug' );
+                $this->redirect_settings_page('invalid_slug');
             }
 
             $old_settings = $this->get_settings();
@@ -575,11 +594,11 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
 
             // Atualiza as regras para que a nova rota funcione
             // imediatamente após o salvamento.
-            if ( $old_settings['slug'] !== $slug ) {
-                $this->refresh_rewrite_rules( $this->is_active(), $old_settings['slug'] );
+            if ($old_settings['slug'] !== $slug) {
+                $this->refresh_rewrite_rules($this->is_active(), $old_settings['slug']);
             }
 
-            $this->redirect_settings_page( 'saved' );
+            $this->redirect_settings_page('saved');
         }
 
         /**
@@ -587,11 +606,12 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
          *
          * A URL é derivada da área administrativa atual.
          */
-        private function redirect_settings_page( $status ) {
+        private function redirect_settings_page($status)
+        {
 
             $referer = wp_get_referer();
 
-            if ( ! $referer ) {
+            if (! $referer) {
                 $referer = admin_url();
             }
 
@@ -604,11 +624,11 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
 
             $referer = add_query_arg(
                 'wa_hide_login_status',
-                sanitize_key( $status ),
+                sanitize_key($status),
                 $referer
             );
 
-            wp_safe_redirect( $referer );
+            wp_safe_redirect($referer);
             exit;
         }
 
@@ -618,9 +638,10 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
          * O gerenciador do WA Suit deve chamar este método
          * quando a aba deste módulo estiver aberta.
          */
-        public function render_tab() {
+        public function render_tab()
+        {
 
-            if ( ! $this->can_manage_settings() ) {
+            if (! $this->can_manage_settings()) {
                 echo '<div class="notice notice-error"><p>';
                 echo esc_html__(
                     'Você não tem permissão para acessar estas configurações.',
@@ -637,13 +658,13 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
             $login_url = $this->get_login_url();
             $module_active = $this->is_active();
 
-            $status = isset( $_GET['wa_hide_login_status'] )
+            $status = isset($_GET['wa_hide_login_status'])
                 ? sanitize_key(
-                    wp_unslash( $_GET['wa_hide_login_status'] )
+                    wp_unslash($_GET['wa_hide_login_status'])
                 )
                 : '';
 
-            ?>
+?>
             <div class="wa-hide-login" id="wa-hide-login">
 
                 <style>
@@ -697,7 +718,7 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
                         color: #343434;
                         font-size: 12px;
                         font-weight: 600;
-                        white-space: nowrap;
+                        white-space: wrap;
                     }
 
                     .wa-hl-dot {
@@ -756,7 +777,7 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
                         border-radius: 8px 0 0 8px;
                         color: var(--wa-hl-muted);
                         font-size: 13px;
-                        white-space: nowrap;
+                        white-space: wrap;
                     }
 
                     .wa-hl-input {
@@ -875,6 +896,7 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
                     }
 
                     @media (max-width: 640px) {
+
                         .wa-hl-header,
                         .wa-hl-preview {
                             flex-direction: column;
@@ -930,7 +952,7 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
                     </span>
                 </div>
 
-                <?php if ( 'saved' === $status ) : ?>
+                <?php if ('saved' === $status) : ?>
                     <div class="wa-hl-alert wa-hl-alert--success">
                         <?php
                         echo esc_html__(
@@ -939,7 +961,7 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
                         );
                         ?>
                     </div>
-                <?php elseif ( 'invalid_slug' === $status ) : ?>
+                <?php elseif ('invalid_slug' === $status) : ?>
                     <div class="wa-hl-alert wa-hl-alert--error">
                         <?php
                         echo esc_html__(
@@ -971,13 +993,11 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
 
                     <form
                         method="post"
-                        action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"
-                    >
+                        action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                         <input
                             type="hidden"
                             name="action"
-                            value="wa_suit_save_hide_login"
-                        >
+                            value="wa_suit_save_hide_login">
 
                         <?php
                         wp_nonce_field(
@@ -998,7 +1018,7 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
 
                             <div class="wa-hl-input-wrap">
                                 <span class="wa-hl-prefix">
-                                    <?php echo esc_html( home_url( '/' ) ); ?>
+                                    <?php echo esc_html(home_url('/')); ?>
                                 </span>
 
                                 <input
@@ -1006,14 +1026,13 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
                                     id="wa-hl-slug"
                                     name="slug"
                                     type="text"
-                                    value="<?php echo esc_attr( $slug ); ?>"
+                                    value="<?php echo esc_attr($slug); ?>"
                                     minlength="3"
                                     maxlength="80"
                                     pattern="[a-zA-Z0-9]+(-[a-zA-Z0-9]+)*"
                                     autocomplete="off"
                                     spellcheck="false"
-                                    required
-                                >
+                                    required>
                             </div>
 
                             <span class="wa-hl-hint">
@@ -1038,15 +1057,14 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
                                 </span>
 
                                 <div class="wa-hl-preview-url">
-                                    <code id="wa-hl-preview-url"><?php echo esc_html( $login_url ); ?></code>
+                                    <code id="wa-hl-preview-url"><?php echo esc_html($login_url); ?></code>
                                 </div>
                             </div>
 
                             <button
                                 class="wa-hl-button"
                                 type="button"
-                                id="wa-hl-copy-url"
-                            >
+                                id="wa-hl-copy-url">
                                 <?php
                                 echo esc_html__(
                                     'Copiar URL',
@@ -1059,8 +1077,7 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
                         <div class="wa-hl-actions">
                             <button
                                 type="submit"
-                                class="wa-hl-button wa-hl-save"
-                            >
+                                class="wa-hl-button wa-hl-save">
                                 <?php
                                 echo esc_html__(
                                     'Salvar configurações',
@@ -1148,34 +1165,34 @@ if ( ! class_exists( 'WA_Suit_Module_Hide_Login' ) ) {
                 </div>
 
                 <script>
-                (function () {
-                    'use strict';
+                    (function() {
+                        'use strict';
 
-                    var button = document.getElementById('wa-hl-copy-url');
-                    var preview = document.getElementById('wa-hl-preview-url');
+                        var button = document.getElementById('wa-hl-copy-url');
+                        var preview = document.getElementById('wa-hl-preview-url');
 
-                    if (!button || !preview) {
-                        return;
-                    }
-
-                    button.addEventListener('click', function () {
-                        var url = preview.textContent.trim();
-
-                        if (navigator.clipboard && window.isSecureContext) {
-                            navigator.clipboard.writeText(url).then(function () {
-                                button.textContent = 'Copiado!';
-                            }).catch(function () {
-                                window.prompt('Copie a URL:', url);
-                            });
-                        } else {
-                            window.prompt('Copie a URL:', url);
+                        if (!button || !preview) {
+                            return;
                         }
-                    });
-                })();
+
+                        button.addEventListener('click', function() {
+                            var url = preview.textContent.trim();
+
+                            if (navigator.clipboard && window.isSecureContext) {
+                                navigator.clipboard.writeText(url).then(function() {
+                                    button.textContent = 'Copiado!';
+                                }).catch(function() {
+                                    window.prompt('Copie a URL:', url);
+                                });
+                            } else {
+                                window.prompt('Copie a URL:', url);
+                            }
+                        });
+                    })();
                 </script>
 
             </div>
-            <?php
+<?php
         }
     }
 }

@@ -555,14 +555,6 @@ public function render_settings_menu_page() {
 		 * @return void
 		 */
 		private function render_general_settings_tab() {
-			$settings = $this->settings->get_general_settings();
-			$post_types = get_post_types(
-				array(
-					'public'  => true,
-					'show_ui' => true,
-				),
-				'objects'
-			);
 			?>
 <div class="wa-general-settings">
     <header class="wa-general-settings__header">
@@ -582,46 +574,7 @@ public function render_settings_menu_page() {
         <input type="hidden" name="action" value="wa_suit_save_general_settings">
         <?php wp_nonce_field( 'wa_suit_save_general_settings' ); ?>
 
-        <section class="wa-general-settings__card">
-            <div class="wa-general-settings__card-heading">
-                <span class="dashicons dashicons-admin-page" aria-hidden="true"></span>
-                <div>
-                    <h3><?php echo esc_html__( 'Duplicar conteúdo', 'wa-suit' ); ?></h3>
-                    <p><?php echo esc_html__( 'Crie uma cópia em rascunho diretamente pela lista de conteúdos.', 'wa-suit' ); ?>
-                    </p>
-                </div>
-            </div>
-
-            <label class="wa-general-settings__toggle">
-                <input type="checkbox" name="settings[duplicate_enabled]" value="1"
-                    <?php checked( $settings['duplicate_enabled'] ); ?>>
-                <span>
-                    <strong><?php echo esc_html__( 'Ativar duplicação', 'wa-suit' ); ?></strong>
-                    <small><?php echo esc_html__( 'Ativado por padrão. As cópias são criadas como rascunho.', 'wa-suit' ); ?></small>
-                </span>
-            </label>
-
-            <fieldset class="wa-general-settings__types">
-                <legend><?php echo esc_html__( 'Tipos de conteúdo disponíveis', 'wa-suit' ); ?></legend>
-                <div class="wa-general-settings__type-list">
-                    <?php foreach ( $post_types as $post_type => $post_type_object ) :
-									if ( in_array( $post_type, array( 'attachment', 'revision', 'product' ), true ) || empty( $post_type_object->public ) || empty( $post_type_object->show_ui ) ) {
-										continue;
-									}
-									?>
-                    <label>
-                        <input type="checkbox" name="settings[duplicate_post_types][]"
-                            value="<?php echo esc_attr( $post_type ); ?>"
-                            <?php checked( in_array( $post_type, $settings['duplicate_post_types'], true ) ); ?>>
-                        <span><?php echo esc_html( $post_type_object->labels->name ); ?></span>
-                    </label>
-                    <?php endforeach; ?>
-                </div>
-                <p class="description">
-                    <?php echo esc_html__( 'Produtos WooCommerce usam a opção nativa “Duplicar” da própria lista de produtos.', 'wa-suit' ); ?>
-                </p>
-            </fieldset>
-        </section>
+        <?php $this->settings->render_general_settings(); ?>
 
         <div class="wa-general-settings__actions">
             <button type="submit"
