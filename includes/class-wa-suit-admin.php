@@ -48,8 +48,12 @@ class WA_Suit_Admin {
 		add_action( 'admin_menu', array( $this, 'add_menu' ) );
 		add_action( 'admin_head', array( $this, 'custom_admin_menu_icon_css' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_action( 'admin_notices', array( $this, 'show_duplicate_notice' ) );
 		add_action( 'wp_ajax_wa_suit_toggle_module', array( $this, 'ajax_toggle_module' ) );
 		add_action( 'admin_post_wa_suit_save_general_settings', array( $this, 'save_general_settings' ) );
+		add_action( 'admin_post_wa_suit_save_developer_settings', array( $this, 'save_developer_settings' ) );
+		add_action( 'admin_post_wa_suit_clear_debug_log', array( $this, 'clear_debug_log' ) );
+		add_action( 'admin_post_wa_suit_create_child_theme', array( $this, 'create_child_theme' ) );
 		add_action( 'admin_action_wa_suit_duplicate_post', array( $this, 'duplicate_post' ) );
 		add_filter( 'post_row_actions', array( $this, 'add_duplicate_post_action' ), 10, 2 );
 		add_filter( 'page_row_actions', array( $this, 'add_duplicate_post_action' ), 10, 2 );
@@ -279,12 +283,20 @@ public function render_settings_menu_page() {
 			: array();
 		$this->settings->save_general_settings( $input );
 
+		$settings_section = isset( $_POST['settings_section'] ) && is_string( $_POST['settings_section'] )
+			? sanitize_key( wp_unslash( $_POST['settings_section'] ) )
+			: 'general';
+		$settings_section = in_array( $settings_section, array( 'general', 'developer' ), true )
+			? $settings_section
+			: 'general';
+
 		wp_safe_redirect(
 			add_query_arg(
 				array(
-					'page'          => 'wa-suit',
-					'tab'           => 'settings',
-					'settings-saved' => '1',
+					'page'            => 'wa-suit',
+					'tab'             => 'settings',
+					'settings_section' => $settings_section,
+					'settings-saved'  => '1',
 				),
 				admin_url( 'admin.php' )
 			)
@@ -369,20 +381,71 @@ public function render_settings_menu_page() {
 
 		$meta = get_post_meta( $post_id );
 		foreach ( $meta as $meta_key => $values ) {
-			if ( in_array( $meta_key, array( '_edit_lock', '_edit_last' ), true ) ) {
+			if ( in_array( $meta_key, array( '_edit_lock', '_edit_last', '_elementor_css' ), true ) ) {
 				continue;
 			}
 
 			foreach ( $values as $value ) {
-				if ( ! add_post_meta( $duplicate_id, $meta_key, maybe_unserialize( $value ) ) ) {
+				if ( '_elementor_page_settings' === $meta_key && ! is_array( $value ) ) {
+					$value = array();
+				}
+
+				if ( ! add_post_meta( $duplicate_id, $meta_key, wp_slash( $value ) ) ) {
 					wp_delete_post( $duplicate_id, true );
 					wp_die( esc_html__( 'Não foi possível copiar os metadados do conteúdo.', 'wa-suit' ), '', array( 'response' => 500 ) );
 				}
 			}
 		}
 
-		wp_safe_redirect( admin_url( 'post.php?post=' . absint( $duplicate_id ) . '&action=edit' ) );
+		$elementor_css_error = false;
+		if (
+			metadata_exists( 'post', $duplicate_id, '_elementor_data' )
+			&& class_exists( '\Elementor\Core\Files\CSS\Post' )
+			&& method_exists( '\Elementor\Core\Files\CSS\Post', 'update' )
+		) {
+			try {
+				$elementor_css = new \Elementor\Core\Files\CSS\Post( $duplicate_id );
+				$elementor_css->update();
+			} catch ( \Throwable $error ) {
+				error_log(
+					sprintf(
+						'WA Suit: Elementor CSS regeneration failed for duplicate post %d: %s',
+						$duplicate_id,
+						$error->getMessage()
+					)
+				);
+				$elementor_css_error = true;
+			}
+		}
+
+		$redirect_url = admin_url( 'post.php?post=' . absint( $duplicate_id ) . '&action=edit' );
+		if ( $elementor_css_error ) {
+			$redirect_url = add_query_arg( 'wa_suit_elementor_css_error', '1', $redirect_url );
+		}
+
+		wp_safe_redirect( $redirect_url );
 		exit;
+	}
+
+	/**
+	 * Displays a warning when Elementor CSS could not be regenerated for a copy.
+	 *
+	 * @return void
+	 */
+	public function show_duplicate_notice() {
+		$post_id   = isset( $_GET['post'] ) ? absint( $_GET['post'] ) : 0;
+		$has_error = isset( $_GET['wa_suit_elementor_css_error'] )
+			&& is_string( $_GET['wa_suit_elementor_css_error'] )
+			&& '1' === wp_unslash( $_GET['wa_suit_elementor_css_error'] );
+
+		if ( ! $has_error || ! $post_id || ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+		?>
+		<div class="notice notice-warning is-dismissible">
+			<p><?php echo esc_html__( 'A cópia foi criada, mas o Elementor não conseguiu regenerar o CSS. Abra a página no Elementor e salve para atualizar os estilos. Consulte o log de erros do servidor para ver o detalhe técnico.', 'wa-suit' ); ?></p>
+		</div>
+		<?php
 	}
 
 	/**
@@ -555,6 +618,12 @@ public function render_settings_menu_page() {
 		 * @return void
 		 */
 		private function render_general_settings_tab() {
+			$settings_section = isset( $_GET['settings_section'] ) && is_string( $_GET['settings_section'] )
+				? sanitize_key( wp_unslash( $_GET['settings_section'] ) )
+				: 'general';
+			if ( ! in_array( $settings_section, array( 'general', 'developer' ), true ) ) {
+				$settings_section = 'general';
+			}
 			?>
 <div class="wa-general-settings">
     <header class="wa-general-settings__header">
@@ -565,13 +634,31 @@ public function render_settings_menu_page() {
         </div>
     </header>
 
-    <?php if ( isset( $_GET['settings-saved'] ) && is_string( $_GET['settings-saved'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['settings-saved'] ) ) ) : ?>
+	<nav class="wa-config-tabs" aria-label="<?php esc_attr_e( 'Abas de configuração', 'wa-suit' ); ?>">
+		<a href="<?php echo esc_url( add_query_arg( array( 'page' => 'wa-suit', 'tab' => 'settings', 'settings_section' => 'general' ), admin_url( 'admin.php' ) ) ); ?>" <?php echo 'general' === $settings_section ? 'aria-current="page"' : ''; ?>>
+			<span class="dashicons dashicons-admin-generic" aria-hidden="true"></span>
+			<?php echo esc_html__( 'Geral', 'wa-suit' ); ?>
+		</a>
+		<a href="<?php echo esc_url( add_query_arg( array( 'page' => 'wa-suit', 'tab' => 'settings', 'settings_section' => 'developer' ), admin_url( 'admin.php' ) ) ); ?>" <?php echo 'developer' === $settings_section ? 'aria-current="page"' : ''; ?>>
+			<span class="dashicons dashicons-editor-code" aria-hidden="true"></span>
+			<?php echo esc_html__( 'Desenvolvedor', 'wa-suit' ); ?>
+		</a>
+	</nav>
 
-    <?php endif; ?>
+	<?php if ( isset( $_GET['settings-saved'] ) && is_string( $_GET['settings-saved'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['settings-saved'] ) ) ) : ?>
+		<div class="notice notice-success inline"><p><?php echo esc_html__( 'Configurações salvas.', 'wa-suit' ); ?></p></div>
+	<?php endif; ?>
+
+	<?php if ( 'developer' === $settings_section ) : ?>
+		<?php $this->render_developer_settings_tab(); ?>
+	</div>
+	<?php return; ?>
+	<?php endif; ?>
 
     <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"
         class="wa-general-settings__form">
         <input type="hidden" name="action" value="wa_suit_save_general_settings">
+		<input type="hidden" name="settings_section" value="general">
         <?php wp_nonce_field( 'wa_suit_save_general_settings' ); ?>
 
         <?php $this->settings->render_general_settings(); ?>
@@ -580,9 +667,390 @@ public function render_settings_menu_page() {
             <button type="submit"
                 class="wa-admin-btn wa-admin-btn--primary"><?php echo esc_html__( 'Salvar configurações', 'wa-suit' ); ?></button>
         </div>
+		<br>
     </form>
+	 <?php $this->render_child_theme_settings(); ?>
 </div>
 <?php
+		}
+
+		/**
+		 * Renders developer diagnostics and the private fatal-error log.
+		 *
+		 * @return void
+		 */
+		private function render_developer_settings_tab() {
+			$settings = get_option( WA_Suit_Debug::OPTION_NAME, array() );
+			$enabled  = is_array( $settings ) && ! empty( $settings['debug_enabled'] );
+			$log       = WA_Suit_Debug::get_log_contents();
+			$log_error = false === $log;
+			$wp_debug  = defined( 'WP_DEBUG' ) && WP_DEBUG;
+			$wp_log    = defined( 'WP_DEBUG_LOG' ) && ( true === WP_DEBUG_LOG || ( is_string( WP_DEBUG_LOG ) && '' !== WP_DEBUG_LOG ) );
+			$theme     = wp_get_theme();
+			$result    = isset( $_GET['developer-result'] ) && is_string( $_GET['developer-result'] )
+				? sanitize_key( wp_unslash( $_GET['developer-result'] ) )
+				: '';
+			?>
+			<div class="wa-developer-settings">
+				<header class="wa-developer-settings__intro">
+					<span class="dashicons dashicons-shield" aria-hidden="true"></span>
+					<div>
+						<h3><?php echo esc_html__( 'Ferramentas do desenvolvedor', 'wa-suit' ); ?></h3>
+						<p><?php echo esc_html__( 'Diagnostique erros fatais sem exibir detalhes técnicos para os visitantes.', 'wa-suit' ); ?></p>
+					</div>
+				</header>
+
+				<?php if ( 'saved' === $result ) : ?>
+					<div class="notice notice-success inline"><p><?php echo esc_html__( 'Configuração de depuração salva.', 'wa-suit' ); ?></p></div>
+				<?php elseif ( 'cleared' === $result ) : ?>
+					<div class="notice notice-success inline"><p><?php echo esc_html__( 'Log apagado.', 'wa-suit' ); ?></p></div>
+				<?php elseif ( 'log-error' === $result ) : ?>
+					<div class="notice notice-error inline"><p><?php echo esc_html__( 'Não foi possível apagar o log. Verifique as permissões de escrita no diretório privado de logs.', 'wa-suit' ); ?></p></div>
+				<?php endif; ?>
+
+				<section class="wa-general-settings__card">
+					<div class="wa-general-settings__card-heading">
+						<span class="dashicons dashicons-warning" aria-hidden="true"></span>
+						<div>
+							<h3><?php echo esc_html__( 'Depuração de erros fatais', 'wa-suit' ); ?></h3>
+							<p><?php echo esc_html__( 'Quando ligada, registra erros fatais de PHP em um arquivo privado do WA Suit.', 'wa-suit' ); ?></p>
+						</div>
+					</div>
+
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<input type="hidden" name="action" value="wa_suit_save_developer_settings">
+						<?php wp_nonce_field( 'wa_suit_save_developer_settings' ); ?>
+						<label class="wa-general-settings__toggle">
+							<input type="checkbox" name="debug_enabled" value="1" <?php checked( $enabled ); ?>>
+							<span>
+								<strong><?php echo esc_html__( 'Ativar log de depuração do WA Suit', 'wa-suit' ); ?></strong>
+								<small><?php echo esc_html__( 'Registra erros fatais de PHP no próximo carregamento de página. Os detalhes não são mostrados no site público.', 'wa-suit' ); ?></small>
+							</span>
+						</label>
+						<p class="description"><?php echo esc_html__( 'Esta opção não altera WP_DEBUG nem o arquivo wp-config.php. O modo de depuração nativo do WordPress é configurado separadamente no servidor.', 'wa-suit' ); ?></p>
+						<p><button type="submit" class="wa-admin-btn wa-admin-btn--primary"><?php echo esc_html__( 'Salvar depuração', 'wa-suit' ); ?></button></p>
+					</form>
+				</section>
+
+				<section class="wa-general-settings__card">
+					<div class="wa-general-settings__card-heading">
+						<span class="dashicons dashicons-clipboard" aria-hidden="true"></span>
+						<div>
+							<h3><?php echo esc_html__( 'Estado do ambiente', 'wa-suit' ); ?></h3>
+							<p><?php echo esc_html__( 'Informações úteis para suporte técnico.', 'wa-suit' ); ?></p>
+						</div>
+					</div>
+					<dl class="wa-developer-settings__status">
+						<div><dt><?php echo esc_html__( 'WordPress', 'wa-suit' ); ?></dt><dd><?php echo esc_html( get_bloginfo( 'version' ) ); ?></dd></div>
+						<div><dt><?php echo esc_html__( 'PHP', 'wa-suit' ); ?></dt><dd><?php echo esc_html( PHP_VERSION ); ?></dd></div>
+						<div><dt><?php echo esc_html__( 'Tema ativo', 'wa-suit' ); ?></dt><dd><?php echo esc_html( $theme->get( 'Name' ) . ' ' . $theme->get( 'Version' ) ); ?></dd></div>
+						<div><dt>WP_DEBUG</dt><dd><?php echo $wp_debug ? esc_html__( 'Ativado', 'wa-suit' ) : esc_html__( 'Desativado', 'wa-suit' ); ?></dd></div>
+						<div><dt>WP_DEBUG_LOG</dt><dd><?php echo $wp_log ? esc_html__( 'Ativado', 'wa-suit' ) : esc_html__( 'Desativado', 'wa-suit' ); ?></dd></div>
+					</dl>
+				</section>
+
+				<section class="wa-general-settings__card">
+					<div class="wa-general-settings__card-heading">
+						<span class="dashicons dashicons-text-page" aria-hidden="true"></span>
+						<div>
+							<h3><?php echo esc_html__( 'Log do WA Suit', 'wa-suit' ); ?></h3>
+							<p><?php echo esc_html__( 'Exibe os erros fatais capturados enquanto a depuração estiver ligada. O arquivo é mantido fora da raiz pública sempre que o servidor permite.', 'wa-suit' ); ?></p>
+						</div>
+					</div>
+
+					<?php if ( $log_error ) : ?>
+						<div class="notice notice-error inline"><p><?php echo esc_html__( 'O log não pode ser lido ou o diretório privado não está disponível. Verifique as permissões de arquivo e diretório.', 'wa-suit' ); ?></p></div>
+					<?php elseif ( '' === $log ) : ?>
+						<p class="description"><?php echo esc_html__( 'Nenhum erro fatal foi registrado.', 'wa-suit' ); ?></p>
+					<?php else : ?>
+						<pre class="wa-developer-settings__log"><?php echo esc_html( $log ); ?></pre>
+					<?php endif; ?>
+
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<input type="hidden" name="action" value="wa_suit_clear_debug_log">
+						<?php wp_nonce_field( 'wa_suit_clear_debug_log' ); ?>
+						<button type="submit" class="wa-admin-btn"><?php echo esc_html__( 'Limpar log', 'wa-suit' ); ?></button>
+					</form>
+				</section>
+			</div>
+			<?php
+		}
+
+		/**
+		 * Saves the WA Suit fatal-error logging preference.
+		 *
+		 * @return void
+		 */
+		public function save_developer_settings() {
+			if ( ! WA_Suit_Security::can_manage_settings() ) {
+				wp_die( esc_html__( 'Você não tem permissão para alterar estas configurações.', 'wa-suit' ), '', array( 'response' => 403 ) );
+			}
+
+			check_admin_referer( 'wa_suit_save_developer_settings' );
+			$enabled = isset( $_POST['debug_enabled'] ) && is_scalar( $_POST['debug_enabled'] ) && '1' === (string) wp_unslash( $_POST['debug_enabled'] );
+			update_option(
+				WA_Suit_Debug::OPTION_NAME,
+				array( 'debug_enabled' => $enabled )
+			);
+
+			wp_safe_redirect(
+				add_query_arg(
+					array(
+						'page'             => 'wa-suit',
+						'tab'              => 'settings',
+						'settings_section' => 'developer',
+						'developer-result' => 'saved',
+					),
+					admin_url( 'admin.php' )
+				)
+			);
+			exit;
+		}
+
+		/**
+		 * Clears the private WA Suit fatal-error log.
+		 *
+		 * @return void
+		 */
+		public function clear_debug_log() {
+			if ( ! WA_Suit_Security::can_manage_settings() ) {
+				wp_die( esc_html__( 'Você não tem permissão para limpar este log.', 'wa-suit' ), '', array( 'response' => 403 ) );
+			}
+
+			check_admin_referer( 'wa_suit_clear_debug_log' );
+			$cleared = WA_Suit_Debug::clear_log();
+
+			wp_safe_redirect(
+				add_query_arg(
+					array(
+						'page'             => 'wa-suit',
+						'tab'              => 'settings',
+						'settings_section' => 'developer',
+						'developer-result' => $cleared ? 'cleared' : 'log-error',
+					),
+					admin_url( 'admin.php' )
+				)
+			);
+			exit;
+		}
+
+		/**
+		 * Renders the child theme creation settings card.
+		 *
+		 * @return void
+		 */
+		private function render_child_theme_settings() {
+			$current_theme   = wp_get_theme();
+			$available_themes = wp_get_themes();
+			$parent_themes   = array_filter(
+				$available_themes,
+				function ( $theme ) {
+					return ! $theme->errors() && $theme->get_stylesheet() === $theme->get_template();
+				}
+			);
+			$current_parent  = $current_theme->get_template();
+			$default_name    = isset( $parent_themes[ $current_parent ] )
+				? $parent_themes[ $current_parent ]->get( 'Name' ) . ' Child'
+				: $current_theme->get( 'Name' ) . ' Child';
+			$result          = isset( $_GET['child-theme-result'] ) && is_string( $_GET['child-theme-result'] )
+				? sanitize_key( wp_unslash( $_GET['child-theme-result'] ) )
+				: '';
+			?>
+			<section class="wa-general-settings__card">
+				<div class="wa-general-settings__card-heading">
+					<span class="dashicons dashicons-admin-appearance" aria-hidden="true"></span>
+					<div>
+						<h3><?php echo esc_html__( 'Criar tema filho', 'wa-suit' ); ?></h3>
+						<p><?php echo esc_html__( 'Escolha um tema instalado para criar um tema filho sem editar os arquivos originais.', 'wa-suit' ); ?></p>
+					</div>
+				</div>
+				<p class="description"><?php echo esc_html__( 'A ativação do tema filho pode alterar a aparência do site. Faça um backup antes de prosseguir.', 'wa-suit' ); ?></p>
+
+				<?php if ( 'created' === $result ) : ?>
+					<div class="notice notice-success inline"><p><?php echo esc_html__( 'Tema filho criado com sucesso.', 'wa-suit' ); ?></p></div>
+				<?php elseif ( 'created-activated' === $result ) : ?>
+					<div class="notice notice-success inline"><p><?php echo esc_html__( 'Tema filho criado e ativado com sucesso.', 'wa-suit' ); ?></p></div>
+				<?php elseif ( '' !== $result ) : ?>
+					<div class="notice notice-error inline"><p><?php echo esc_html( $this->get_child_theme_error_message( $result ) ); ?></p></div>
+				<?php endif; ?>
+
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="wa_suit_create_child_theme">
+					<?php wp_nonce_field( 'wa_suit_create_child_theme' ); ?>
+					<p>
+						<label for="wa-suit-child-theme-parent">
+							<strong><?php echo esc_html__( 'Tema que será o pai', 'wa-suit' ); ?></strong>
+						</label><br>
+						<select id="wa-suit-child-theme-parent" name="parent_theme" class="regular-text" required>
+							<option value=""><?php echo esc_html__( 'Selecione um tema instalado', 'wa-suit' ); ?></option>
+							<?php foreach ( $parent_themes as $theme_slug => $theme ) : ?>
+								<option value="<?php echo esc_attr( $theme_slug ); ?>" <?php selected( $current_parent, $theme_slug ); ?>>
+									<?php echo esc_html( $theme->get( 'Name' ) ); ?>
+									<?php if ( $current_parent === $theme_slug ) : ?>
+										— <?php echo esc_html__( 'base do tema ativo', 'wa-suit' ); ?>
+									<?php endif; ?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+					</p>
+					<p>
+						<label for="wa-suit-child-theme-name">
+							<strong><?php echo esc_html__( 'Nome do tema filho', 'wa-suit' ); ?></strong>
+						</label><br>
+						<input
+							type="text"
+							id="wa-suit-child-theme-name"
+							name="child_theme_name"
+							class="regular-text"
+							value="<?php echo esc_attr( $default_name ); ?>"
+							required
+						>
+					</p>
+					<?php if ( current_user_can( 'switch_themes' ) ) : ?>
+						<label class="wa-general-settings__toggle">
+							<input type="checkbox" name="activate_child_theme" value="1" checked>
+							<span>
+								<strong><?php echo esc_html__( 'Criar e ativar o tema filho', 'wa-suit' ); ?></strong>
+								<small><?php echo esc_html__( 'Marcado por padrão. Desmarque para apenas criar e deixar o tema atual ativo.', 'wa-suit' ); ?></small>
+							</span>
+						</label>
+					<?php else : ?>
+						<p class="description"><?php echo esc_html__( 'Sua conta pode criar o tema, mas não tem permissão para ativá-lo.', 'wa-suit' ); ?></p>
+					<?php endif; ?>
+					<?php if ( current_user_can( 'install_themes' ) ) : ?>
+						<br>
+						<button type="submit" class="wa-admin-btn wa-admin-btn--primary">
+							<?php echo esc_html__( 'Criar tema filho', 'wa-suit' ); ?>
+						</button>
+					<?php endif; ?>
+				</form>
+			</section>
+			<?php
+		}
+
+		/**
+		 * Creates a child theme for an installed parent theme.
+		 *
+		 * @return void
+		 */
+		public function create_child_theme() {
+			if ( ! WA_Suit_Security::can_manage_settings() || ! current_user_can( 'install_themes' ) ) {
+				wp_die( esc_html__( 'Você não tem permissão para criar temas.', 'wa-suit' ), '', array( 'response' => 403 ) );
+			}
+
+			check_admin_referer( 'wa_suit_create_child_theme' );
+
+			$theme_name = isset( $_POST['child_theme_name'] )
+				? sanitize_text_field( wp_unslash( $_POST['child_theme_name'] ) )
+				: '';
+			$theme_slug = sanitize_title( $theme_name );
+			$parent_slug = isset( $_POST['parent_theme'] ) && is_string( $_POST['parent_theme'] )
+				? sanitize_text_field( wp_unslash( $_POST['parent_theme'] ) )
+				: '';
+			$activate_theme = ! empty( $_POST['activate_child_theme'] );
+
+			if ( '' === $theme_name || '' === $theme_slug || ! preg_match( '/^[a-z0-9-]+$/', $theme_slug ) ) {
+				$this->redirect_child_theme_result( 'invalid-name' );
+			}
+
+			if ( $activate_theme && ! current_user_can( 'switch_themes' ) ) {
+				wp_die( esc_html__( 'Você não tem permissão para ativar temas.', 'wa-suit' ), '', array( 'response' => 403 ) );
+			}
+
+			$installed_themes = wp_get_themes();
+			$parent_theme     = isset( $installed_themes[ $parent_slug ] ) ? $installed_themes[ $parent_slug ] : null;
+			if ( ! $parent_theme || $parent_theme->errors() || $parent_theme->get_stylesheet() !== $parent_theme->get_template() ) {
+				$this->redirect_child_theme_result( 'invalid-parent' );
+			}
+
+			$theme_root = get_theme_root( $parent_slug );
+			if ( ! is_string( $theme_root ) || ! is_dir( $theme_root ) || ! is_writable( $theme_root ) ) {
+				$this->redirect_child_theme_result( 'not-writable' );
+			}
+
+			$theme_directory = trailingslashit( $theme_root ) . $theme_slug;
+			if ( file_exists( $theme_directory ) ) {
+				$this->redirect_child_theme_result( 'already-exists' );
+			}
+
+			if ( ! wp_mkdir_p( $theme_directory ) || ! is_dir( $theme_directory ) || ! is_writable( $theme_directory ) ) {
+				$this->redirect_child_theme_result( 'create-failed' );
+			}
+
+			$theme_name  = str_replace( array( "\r", "\n", '*/' ), array( '', '', '* /' ), $theme_name );
+			$function_name = 'wa_suit_' . str_replace( '-', '_', $theme_slug ) . '_enqueue_parent_styles';
+			$style_css   = "/*\nTheme Name: " . $theme_name . "\n";
+			$style_css  .= "Template: " . $parent_slug . "\n";
+			$style_css  .= "Version: 1.0.0\n";
+			$style_css  .= "Text Domain: " . $theme_slug . "\n";
+			$style_css  .= "*/\n";
+			$functions   = "<?php\n/**\n * Enqueues the parent and child theme stylesheets.\n */\n";
+			$functions  .= "function " . $function_name . "() {\n";
+			$functions  .= "\twp_enqueue_style( 'parent-style', get_template_directory_uri() . '/style.css' );\n";
+			$functions  .= "\twp_enqueue_style( 'child-style', get_stylesheet_uri(), array( 'parent-style' ), wp_get_theme()->get( 'Version' ) );\n";
+			$functions  .= "}\n";
+			$functions  .= "add_action( 'wp_enqueue_scripts', '" . $function_name . "' );\n";
+
+			$style_written = strlen( $style_css ) === file_put_contents( trailingslashit( $theme_directory ) . 'style.css', $style_css );
+			$functions_written = strlen( $functions ) === file_put_contents( trailingslashit( $theme_directory ) . 'functions.php', $functions );
+
+			if ( ! $style_written || ! $functions_written ) {
+				if ( file_exists( trailingslashit( $theme_directory ) . 'style.css' ) ) {
+					wp_delete_file( trailingslashit( $theme_directory ) . 'style.css' );
+				}
+				if ( file_exists( trailingslashit( $theme_directory ) . 'functions.php' ) ) {
+					wp_delete_file( trailingslashit( $theme_directory ) . 'functions.php' );
+				}
+				rmdir( $theme_directory );
+				$this->redirect_child_theme_result( 'write-failed' );
+			}
+
+			wp_clean_themes_cache();
+			if ( $activate_theme ) {
+				switch_theme( $theme_slug );
+				$this->redirect_child_theme_result( 'created-activated' );
+			}
+
+			$this->redirect_child_theme_result( 'created' );
+		}
+
+		/**
+		 * Redirects back to settings with the child-theme operation result.
+		 *
+		 * @param string $result Result code.
+		 * @return void
+		 */
+		private function redirect_child_theme_result( $result ) {
+			wp_safe_redirect(
+				add_query_arg(
+					array(
+						'page'                => 'wa-suit',
+						'tab'                 => 'settings',
+						'child-theme-result' => sanitize_key( $result ),
+					),
+					admin_url( 'admin.php' )
+				)
+			);
+			exit;
+		}
+
+		/**
+		 * Returns a localized message for child-theme creation errors.
+		 *
+		 * @param string $result Result code.
+		 * @return string
+		 */
+		private function get_child_theme_error_message( $result ) {
+			$messages = array(
+				'invalid-name'    => __( 'Digite um nome válido para o tema filho.', 'wa-suit' ),
+				'invalid-parent'  => __( 'Selecione um tema pai instalado e válido.', 'wa-suit' ),
+				'not-writable'    => __( 'A pasta de temas não está disponível para gravação. Verifique as permissões do servidor.', 'wa-suit' ),
+				'already-exists'  => __( 'Já existe uma pasta de tema com esse nome. Escolha outro nome.', 'wa-suit' ),
+				'create-failed'   => __( 'Não foi possível criar a pasta do tema filho. Verifique as permissões do servidor.', 'wa-suit' ),
+				'write-failed'    => __( 'Não foi possível gravar os arquivos do tema filho. Verifique as permissões do servidor.', 'wa-suit' ),
+			);
+
+			return isset( $messages[ $result ] ) ? $messages[ $result ] : __( 'Não foi possível criar o tema filho.', 'wa-suit' );
 		}
 
 		/**

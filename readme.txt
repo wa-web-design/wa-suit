@@ -26,6 +26,9 @@ Centralize links em shortcodes para usar em botões do Elementor.
 3. Cole o shortcode nos botões do Elementor.
 4. Quando precisar trocar o número do WhatsApp ou o link do checkout, mude apenas no painel e **todos os botões do site mudam de uma vez só!**
 
+### WA Widgets para Elementor
+Com o Elementor ativo, o WA Suit adiciona a categoria **WA Widgets** no editor e inclui o widget **Popup**. Arraste-o para a página, configure o texto do botão e o conteúdo do popup. O popup começa oculto e só aparece quando o visitante clica no botão; pode ser fechado pelo botão de fechar, clicando fora ou pressionando Escape. Em **Estilo > Botão**, personalize tipografia, cores normal e hover, ícone, posição do ícone, alinhamento, espaçamento, borda, arredondamento, sombra e transição. Em **Estilo > Popup**, ajuste a largura e personalize a cor, o hover, o tamanho e a borda do botão de fechar.
+
 ### Códigos Personalizados
 Crie vários snippets em HTML, CSS, JavaScript, PHP ou Shortcode e escolha posição, escopo e dispositivos (desktop, tablet ou celular). A exibição pode ser limitada ao site, a páginas e conteúdos específicos, a posts, a produtos WooCommerce quando disponível ou a várias condições de URL. A lista de conteúdos tem busca por título. O editor de código oferece temas claro e escuro e numeração de linhas.
 
@@ -34,8 +37,13 @@ Snippets mais específicos são impressos depois dos globais; entre regras de UR
 ### Hide Login
 Personalize o endereço da tela oficial de login do WordPress. Visitantes não autenticados que acessarem `wp-login.php` serão enviados à página inicial. O endereço funciona com links permanentes amigáveis e, quando eles estão desativados, usa uma rota por parâmetro. Ative o módulo na página Módulos antes de usar a proteção.
 
+### Cookies
+Ative o módulo **Cookies** em **Módulos** para exibir um aviso de consentimento no site. Configure nome do site, mensagem, link para a política de privacidade, categorias de análise e publicidade (incluindo AdSense), posição, cores do painel e cores independentes dos botões, além da duração da escolha do visitante. O aviso usa um visual sólido, com ícone de cookie e marca WA Web Design. As preferências são salvas no navegador e podem ser abertas novamente pelo botão de preferências. O módulo registra as escolhas, mas não bloqueia automaticamente cookies ou scripts de serviços externos; essas integrações precisam ser configuradas separadamente.
+
 ### Configuração
-Ative a duplicação de páginas, posts e tipos de conteúdo públicos; o recurso vem ativado por padrão e cria cópias em rascunho. Produtos WooCommerce usam o comando de duplicação nativo do WooCommerce.
+As configurações estão organizadas nas abas **Geral** e **Desenvolvedor**. Em **Geral**, ative a duplicação de páginas, posts e tipos de conteúdo públicos; o recurso vem ativado por padrão e cria cópias em rascunho. Páginas criadas com Elementor mantêm a estrutura dos widgets e têm o CSS regenerado para a cópia. Também é possível escolher um tema pai instalado, informar o nome do tema filho e decidir se quer ativá-lo imediatamente (opção marcada por padrão). A ativação pode alterar a aparência do site; faça um backup antes. Produtos WooCommerce usam o comando de duplicação nativo do WooCommerce.
+
+Na aba **Desenvolvedor**, é possível ativar ou desativar a captura de erros fatais do PHP pelo WA Suit, consultar e limpar o log e conferir informações do ambiente, incluindo o estado de `WP_DEBUG` e `WP_DEBUG_LOG`. O log do WA Suit é separado das constantes nativas do WordPress e fica em diretório privado, fora da raiz pública quando possível; os erros são exibidos somente na área administrativa para usuários autorizados. A ferramenta não altera `wp-config.php` nem substitui o log nativo do WordPress.
 
 == Installation ==
 
