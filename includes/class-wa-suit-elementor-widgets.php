@@ -33,6 +33,10 @@ class WA_Suit_Elementor_Widgets {
 	 * @return void
 	 */
 	public function register_category( $elements_manager ) {
+		if ( ! WA_Suit_Elementor_Form_Masks::is_widget_enabled( 'popup' ) ) {
+			return;
+		}
+
 		$elements_manager->add_category(
 			'wa-widgets',
 			array(
@@ -49,8 +53,10 @@ class WA_Suit_Elementor_Widgets {
 	 * @return void
 	 */
 	public function register_widgets( $widgets_manager ) {
-		require_once WA_SUIT_PATH . 'includes/elementor/class-wa-suit-elementor-popup-widget.php';
-		$widgets_manager->register( new WA_Suit_Elementor_Popup_Widget() );
+		if ( WA_Suit_Elementor_Form_Masks::is_widget_enabled( 'popup' ) ) {
+			require_once WA_SUIT_PATH . 'includes/elementor/class-wa-suit-elementor-popup-widget.php';
+			$widgets_manager->register( new WA_Suit_Elementor_Popup_Widget() );
+		}
 	}
 
 	/**

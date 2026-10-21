@@ -131,6 +131,34 @@
 	line-height: 1.5;
 }
 
+.wa-general-settings__form-row {
+	display: grid;
+	gap: 6px;
+	max-width: 480px;
+}
+
+.wa-general-settings__form-row > label {
+	color: #242424;
+	font-size: 12px;
+}
+
+.wa-general-settings__form-row input[type="search"],
+.wa-general-settings__form-row select {
+	box-sizing: border-box;
+	max-width: 100%;
+	width: 100%;
+}
+
+.wa-general-settings__form-row select[multiple] {
+	min-height: 180px;
+}
+
+.wa-general-settings__form-row small {
+	color: #737373;
+	font-size: 11px;
+	line-height: 1.5;
+}
+
 .wa-general-settings__types {
 	border: 0;
 	margin: 17px 0 0;

@@ -1,0 +1,129 @@
+.elementor-widget-form .iti,
+.elementor-form .iti {
+	display: block;
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+}
+
+.elementor-widget-form .iti__country-container,
+.elementor-form .iti__country-container {
+	display: flex;
+	align-items: center;
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	z-index: 2;
+	width: auto;
+	max-width: 100%;
+}
+
+button.iti__search-clear.iti__hide {
+ background: #fff;
+ border: none;
+}
+
+.elementor-widget-form .iti__selected-country,
+.elementor-form .iti__selected-country {
+	display: flex;
+	flex-flow: row nowrap !important;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: flex-start;
+	box-sizing: border-box;
+	height: 100% !important;
+	min-height: 0 !important;
+	width: auto !important;
+	min-width: 0 !important;
+	max-width: none;
+	margin: 0;
+	padding: 0;
+	border: 0 !important;
+	border-radius: 0;
+	background: transparent !important;
+	box-shadow: none !important;
+	color: inherit;
+	line-height: normal;
+	text-align: left;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.elementor-widget-form .iti__selected-country .iti__flag,
+.elementor-form .iti__selected-country .iti__flag {
+	display: inline-block;
+	flex: 0 0 auto;
+}
+
+.elementor-widget-form .iti__selected-country-primary,
+.elementor-form .iti__selected-country-primary {
+	display: flex;
+	flex-flow: row nowrap !important;
+	flex: 0 0 auto;
+	align-items: center;
+	height: 100%;
+	width: auto !important;
+	min-width: 0 !important;
+	gap: 4px;
+	white-space: nowrap;
+}
+
+.elementor-widget-form .iti__selected-dial-code,
+.elementor-form .iti__selected-dial-code {
+	display: inline-block;
+	flex: 0 0 auto;
+	margin: 0;
+	line-height: inherit;
+	white-space: nowrap;
+}
+
+.elementor-widget-form .iti input.iti__tel-input,
+.elementor-form .iti input.iti__tel-input {
+	box-sizing: border-box;
+	width: 100% !important;
+	max-width: 100%;
+	min-width: 0 !important;
+}
+
+.elementor-widget-form .iti input.iti__tel-input,
+.elementor-form .iti input.iti__tel-input {
+	padding-left: 100px !important;
+}
+
+.elementor-widget-form .iti__search-input,
+.elementor-form .iti__search-input {
+	padding: 10px 0 10px 35px !important;
+}
+
+.elementor-widget-form .iti--fullscreen-popup .iti__close-button,
+.elementor-form .iti--fullscreen-popup .iti__close-button {
+	width: auto;
+	height: auto;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+	color: #e53935;
+}
+
+.elementor-widget-form .iti--fullscreen-popup .iti__close-button:hover,
+.elementor-widget-form .iti--fullscreen-popup .iti__close-button:focus,
+.elementor-form .iti--fullscreen-popup .iti__close-button:hover,
+.elementor-form .iti--fullscreen-popup .iti__close-button:focus {
+	border: 0;
+	background: transparent;
+	box-shadow: none;
+	color: #e53935;
+}
+
+.elementor-widget-form .iti--fullscreen-popup .iti__close-button-svg,
+.elementor-form .iti--fullscreen-popup .iti__close-button-svg {
+	stroke: currentColor;
+}
+
+.elementor-widget-form .iti__dropdown-content,
+.elementor-form .iti__dropdown-content {
+	z-index: 10000;
+}

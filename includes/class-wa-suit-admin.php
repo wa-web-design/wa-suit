@@ -51,6 +51,7 @@ class WA_Suit_Admin {
 		add_action( 'admin_notices', array( $this, 'show_duplicate_notice' ) );
 		add_action( 'wp_ajax_wa_suit_toggle_module', array( $this, 'ajax_toggle_module' ) );
 		add_action( 'admin_post_wa_suit_save_general_settings', array( $this, 'save_general_settings' ) );
+		add_action( 'admin_post_wa_suit_save_elementor_form_settings', array( $this, 'save_elementor_form_settings' ) );
 		add_action( 'admin_post_wa_suit_save_developer_settings', array( $this, 'save_developer_settings' ) );
 		add_action( 'admin_post_wa_suit_clear_debug_log', array( $this, 'clear_debug_log' ) );
 		add_action( 'admin_post_wa_suit_create_child_theme', array( $this, 'create_child_theme' ) );
@@ -297,6 +298,37 @@ public function render_settings_menu_page() {
 					'tab'             => 'settings',
 					'settings_section' => $settings_section,
 					'settings-saved'  => '1',
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	/**
+	 * Saves Elementor Pro form settings.
+	 *
+	 * @return void
+	 */
+	public function save_elementor_form_settings() {
+		if ( ! WA_Suit_Security::can_manage_settings() ) {
+			wp_die( esc_html__( 'Você não tem permissão para alterar estas configurações.', 'wa-suit' ), '', array( 'response' => 403 ) );
+		}
+
+		check_admin_referer( 'wa_suit_save_elementor_form_settings' );
+
+		$input = isset( $_POST['settings'] ) && is_array( $_POST['settings'] )
+			? wp_unslash( $_POST['settings'] )
+			: array();
+		WA_Suit_Elementor_Form_Masks::save_settings( $input );
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'             => 'wa-suit',
+					'tab'              => 'settings',
+					'settings_section' => 'elementor-pro',
+					'settings-saved'   => '1',
 				),
 				admin_url( 'admin.php' )
 			)
@@ -621,7 +653,7 @@ public function render_settings_menu_page() {
 			$settings_section = isset( $_GET['settings_section'] ) && is_string( $_GET['settings_section'] )
 				? sanitize_key( wp_unslash( $_GET['settings_section'] ) )
 				: 'general';
-			if ( ! in_array( $settings_section, array( 'general', 'developer' ), true ) ) {
+			if ( ! in_array( $settings_section, array( 'general', 'developer', 'elementor-pro' ), true ) ) {
 				$settings_section = 'general';
 			}
 			?>
@@ -643,6 +675,10 @@ public function render_settings_menu_page() {
 			<span class="dashicons dashicons-editor-code" aria-hidden="true"></span>
 			<?php echo esc_html__( 'Desenvolvedor', 'wa-suit' ); ?>
 		</a>
+		<a href="<?php echo esc_url( add_query_arg( array( 'page' => 'wa-suit', 'tab' => 'settings', 'settings_section' => 'elementor-pro' ), admin_url( 'admin.php' ) ) ); ?>" <?php echo 'elementor-pro' === $settings_section ? 'aria-current="page"' : ''; ?>>
+			<span class="dashicons dashicons-admin-customizer" aria-hidden="true"></span>
+			<?php echo esc_html__( 'Elementor Pro', 'wa-suit' ); ?>
+		</a>
 	</nav>
 
 	<?php if ( isset( $_GET['settings-saved'] ) && is_string( $_GET['settings-saved'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['settings-saved'] ) ) ) : ?>
@@ -651,6 +687,12 @@ public function render_settings_menu_page() {
 
 	<?php if ( 'developer' === $settings_section ) : ?>
 		<?php $this->render_developer_settings_tab(); ?>
+	</div>
+	<?php return; ?>
+	<?php endif; ?>
+
+	<?php if ( 'elementor-pro' === $settings_section ) : ?>
+		<?php $this->render_elementor_pro_settings_tab(); ?>
 	</div>
 	<?php return; ?>
 	<?php endif; ?>
@@ -672,6 +714,148 @@ public function render_settings_menu_page() {
 	 <?php $this->render_child_theme_settings(); ?>
 </div>
 <?php
+		}
+
+		/**
+		 * Renders Elementor Pro form mask settings.
+		 *
+		 * @return void
+		 */
+		private function render_elementor_pro_settings_tab() {
+			$settings = WA_Suit_Elementor_Form_Masks::get_settings();
+			$countries = WA_Suit_Elementor_Form_Masks::get_phone_countries();
+			?>
+			<section class="wa-general-settings__card">
+				<div class="wa-general-settings__card-heading">
+					<span class="dashicons dashicons-feedback" aria-hidden="true"></span>
+					<div>
+						<h3><?php echo esc_html__( 'Máscaras de campos dos formulários', 'wa-suit' ); ?></h3>
+						<p><?php echo esc_html__( 'Adicione máscaras personalizadas e, opcionalmente, um seletor de país com formatação internacional para telefones.', 'wa-suit' ); ?></p>
+					</div>
+				</div>
+
+				<?php if ( ! defined( 'ELEMENTOR_PRO_VERSION' ) ) : ?>
+					<div class="notice notice-info inline">
+						<p><?php echo esc_html__( 'O Elementor Pro precisa estar ativo para exibir as opções de máscara nos campos do widget Formulário.', 'wa-suit' ); ?></p>
+					</div>
+				<?php endif; ?>
+
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="wa-general-settings__form">
+					<input type="hidden" name="action" value="wa_suit_save_elementor_form_settings">
+					<?php wp_nonce_field( 'wa_suit_save_elementor_form_settings' ); ?>
+
+					<label class="wa-general-settings__toggle">
+						<input type="checkbox" name="settings[phone_country_selector]" value="1" <?php checked( $settings['phone_country_selector'] ); ?>>
+						<span>
+							<strong><?php echo esc_html__( 'Ativar telefone internacional e seleção de país', 'wa-suit' ); ?></strong>
+							<small><?php echo esc_html__( 'Libera a opção Telefone internacional no campo do formulário. Em Sem máscara, o campo fica sem seletor de país e sem formatação.', 'wa-suit' ); ?></small>
+						</span>
+					</label>
+
+					<div class="wa-general-settings__form-row">
+						<label for="wa-suit-phone-default-country"><strong><?php echo esc_html__( 'País inicial do telefone', 'wa-suit' ); ?></strong></label>
+						<select id="wa-suit-phone-default-country" name="settings[phone_default_country]" data-wa-phone-default-country>
+							<?php foreach ( $countries as $country_code ) : ?>
+								<?php
+								$country_name = class_exists( '\Locale' )
+									? \Locale::getDisplayRegion( 'und_' . strtoupper( $country_code ), 'pt_BR' )
+									: '';
+								$country_name = $country_name ? $country_name : strtoupper( $country_code );
+								?>
+								<option value="<?php echo esc_attr( $country_code ); ?>" <?php selected( $settings['phone_default_country'], $country_code ); ?>>
+									<?php echo esc_html( $country_name . ' (' . strtoupper( $country_code ) . ')' ); ?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+
+					<div class="wa-general-settings__form-row">
+						<label for="wa-suit-phone-country-mode"><strong><?php echo esc_html__( 'Países disponíveis no seletor', 'wa-suit' ); ?></strong></label>
+						<select id="wa-suit-phone-country-mode" name="settings[phone_country_mode]">
+							<option value="exclude" <?php selected( $settings['phone_country_mode'], 'exclude' ); ?>>
+								<?php echo esc_html__( 'Todos, exceto os países selecionados', 'wa-suit' ); ?>
+							</option>
+							<option value="only" <?php selected( $settings['phone_country_mode'], 'only' ); ?>>
+								<?php echo esc_html__( 'Somente os países selecionados', 'wa-suit' ); ?>
+							</option>
+						</select>
+					</div>
+
+					<div class="wa-general-settings__form-row">
+						<label for="wa-suit-phone-countries-search"><strong><?php echo esc_html__( 'Pesquisar países', 'wa-suit' ); ?></strong></label>
+						<input id="wa-suit-phone-countries-search" type="search" placeholder="<?php echo esc_attr__( 'Digite o nome de um país', 'wa-suit' ); ?>" data-wa-phone-countries-search>
+						<select id="wa-suit-phone-countries" name="settings[phone_countries][]" multiple size="8" data-wa-phone-countries>
+							<?php foreach ( $countries as $country_code ) : ?>
+								<?php
+								$country_name = class_exists( '\Locale' )
+									? \Locale::getDisplayRegion( 'und_' . strtoupper( $country_code ), 'pt_BR' )
+									: '';
+								$country_name = $country_name ? $country_name : strtoupper( $country_code );
+								?>
+								<option value="<?php echo esc_attr( $country_code ); ?>" <?php selected( in_array( $country_code, $settings['phone_countries'], true ), true ); ?>>
+									<?php echo esc_html( $country_name . ' (' . strtoupper( $country_code ) . ')' ); ?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+						<small><?php echo esc_html__( 'Se o modo for "Somente os países selecionados", deixe a lista vazia para permitir todos.', 'wa-suit' ); ?></small>
+					</div>
+
+					<div class="wa-general-settings__card-heading">
+						<span class="dashicons dashicons-screenoptions" aria-hidden="true"></span>
+						<div>
+							<h3><?php echo esc_html__( 'Widgets', 'wa-suit' ); ?></h3>
+							<p><?php echo esc_html__( 'Ative ou desative os widgets do WA Suit disponíveis no Elementor.', 'wa-suit' ); ?></p>
+						</div>
+					</div>
+
+					<label class="wa-general-settings__toggle">
+						<input type="hidden" name="settings[widgets][popup]" value="0">
+						<input type="checkbox" name="settings[widgets][popup]" value="1" <?php checked( WA_Suit_Elementor_Form_Masks::is_widget_enabled( 'popup' ) ); ?>>
+						<span>
+							<strong><?php echo esc_html__( 'Widget Popup', 'wa-suit' ); ?></strong>
+							<small><?php echo esc_html__( 'Exibe ou oculta o widget Popup do WA Suit na lista de widgets do Elementor. Ativado por padrão.', 'wa-suit' ); ?></small>
+						</span>
+					</label>
+
+					<div class="wa-general-settings__actions">
+						<button type="submit" class="wa-admin-btn wa-admin-btn--primary"><?php echo esc_html__( 'Salvar configurações', 'wa-suit' ); ?></button>
+					</div>
+				</form>
+			</section>
+			<script>
+				( function () {
+					var countrySelect = document.querySelector( '[data-wa-phone-countries]' );
+					var defaultSelect = document.querySelector( '[data-wa-phone-default-country]' );
+					var searchInput = document.querySelector( '[data-wa-phone-countries-search]' );
+					var displayNames = typeof Intl !== 'undefined' && Intl.DisplayNames
+						? new Intl.DisplayNames( [ document.documentElement.lang || 'pt-BR' ], { type: 'region' } )
+						: null;
+
+					[ countrySelect, defaultSelect ].forEach( function ( select ) {
+						if ( ! select ) {
+							return;
+						}
+
+						Array.prototype.forEach.call( select.options, function ( option ) {
+							var code = option.value.toUpperCase();
+							var name = displayNames ? displayNames.of( code ) : code;
+							name = name || code;
+							option.textContent = name + ' (' + code + ')';
+							option.dataset.countryName = ( name + ' ' + code ).toLocaleLowerCase();
+						} );
+					} );
+
+					if ( searchInput && countrySelect ) {
+						searchInput.addEventListener( 'input', function () {
+							var query = searchInput.value.trim().toLocaleLowerCase();
+							Array.prototype.forEach.call( countrySelect.options, function ( option ) {
+								option.hidden = query && option.dataset.countryName.indexOf( query ) === -1;
+							} );
+						} );
+					}
+				} )();
+			</script>
+			<?php
 		}
 
 		/**

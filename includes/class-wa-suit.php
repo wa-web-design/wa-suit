@@ -17,6 +17,7 @@ require_once WA_SUIT_PATH . 'includes/class-wa-suit-module-registry.php';
 require_once WA_SUIT_PATH . 'includes/class-wa-suit-module-loader.php';
 require_once WA_SUIT_PATH . 'includes/class-wa-suit-admin.php';
 require_once WA_SUIT_PATH . 'includes/class-wa-suit-elementor-widgets.php';
+require_once WA_SUIT_PATH . 'includes/class-wa-suit-elementor-form-masks.php';
 
 /**
  * Coordinates plugin components.
@@ -52,6 +53,13 @@ class WA_Suit {
 	private $elementor_widgets;
 
 	/**
+	 * Elementor Pro form masks integration.
+	 *
+	 * @var WA_Suit_Elementor_Form_Masks
+	 */
+	private $elementor_form_masks;
+
+	/**
 	 * Registers plugin hooks and loads enabled components.
 	 *
 	 * @return void
@@ -66,6 +74,9 @@ class WA_Suit {
 
 		$this->elementor_widgets = new WA_Suit_Elementor_Widgets();
 		$this->elementor_widgets->register_hooks();
+
+		$this->elementor_form_masks = new WA_Suit_Elementor_Form_Masks();
+		$this->elementor_form_masks->register_hooks();
 
 		if ( is_admin() ) {
 			$this->admin = new WA_Suit_Admin( $this->settings, $this->module_loader );
