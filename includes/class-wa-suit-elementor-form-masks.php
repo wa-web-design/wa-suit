@@ -738,8 +738,8 @@ class WA_Suit_Elementor_Form_Masks {
 	 */
 	private function get_phone_preset_pattern( $preset ) {
 		$patterns = array(
-			'phone_br_mobile'   => '(00)00000-0000',
-			'phone_br_landline' => '(00)0000-0000',
+			'phone_br_mobile'   => '(00) 00000-0000',
+			'phone_br_landline' => '(00) 0000-0000',
 		);
 
 		return isset( $patterns[ $preset ] ) ? $patterns[ $preset ] : '';

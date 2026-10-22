@@ -134,7 +134,7 @@
 			initialCountry: initialCountry,
 			countrySearch: true,
 			separateDialCode: true,
-			numberDisplayFormat: 'NATIONAL',
+			numberDisplayFormat: 'INTERNATIONAL',
 			showFlags: true,
 			formatAsYouType: true,
 			strictMode: true,
